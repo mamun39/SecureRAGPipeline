@@ -7,6 +7,10 @@ The project supports two workflows:
 1. Ingest a PDF by splitting it into chunks, embedding the chunks, and storing them in Qdrant.
 2. Ask a question and answer it using the most relevant stored chunks.
 
+## Credit
+
+This project was inspired by and gives credit to [ProductionGradeRAGPythonApp](https://github.com/techwithtim/ProductionGradeRAGPythonApp).
+
 ## How It Works
 
 The application is split into a few simple pieces:
