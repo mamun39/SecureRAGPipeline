@@ -1,3 +1,15 @@
+"""Simple Streamlit interface for the RAG application.
+
+This file gives the user a small web UI for two tasks:
+
+1. Upload a PDF so it can be ingested into the vector database.
+2. Ask a question that will be answered using the ingested PDFs.
+
+The important idea is that this UI does not do the heavy backend work itself.
+Instead, it sends events to Inngest, and the backend functions handle the
+actual ingestion and question-answering workflow.
+"""
+
 import asyncio
 from pathlib import Path
 import time
@@ -8,6 +20,7 @@ from dotenv import load_dotenv
 import os
 import requests
 
+# Load local environment variables before creating clients or reading settings.
 load_dotenv()
 
 st.set_page_config(page_title="RAG Ingest PDF", page_icon="📄", layout="centered")
@@ -15,10 +28,20 @@ st.set_page_config(page_title="RAG Ingest PDF", page_icon="📄", layout="center
 
 @st.cache_resource
 def get_inngest_client() -> inngest.Inngest:
+    """Create and cache the Inngest client used by the Streamlit app.
+
+    Streamlit reruns this script whenever the user interacts with the page.
+    Caching prevents the client from being recreated each time.
+    """
     return inngest.Inngest(app_id="rag_app", is_production=False)
 
 
 def save_uploaded_pdf(file) -> Path:
+    """Save an uploaded PDF to disk and return its local path.
+
+    The backend ingestion workflow expects a real file path, so the uploaded
+    file must be written to disk before sending the event.
+    """
     uploads_dir = Path("uploads")
     uploads_dir.mkdir(parents=True, exist_ok=True)
     file_path = uploads_dir / file.name
@@ -28,6 +51,11 @@ def save_uploaded_pdf(file) -> Path:
 
 
 async def send_rag_ingest_event(pdf_path: Path) -> None:
+    """Send an event telling the backend to ingest the saved PDF.
+
+    The backend function will later read the file, split it into chunks,
+    create embeddings, and store those embeddings in Qdrant.
+    """
     client = get_inngest_client()
     await client.send(
         inngest.Event(
@@ -45,10 +73,11 @@ uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=
 
 if uploaded is not None:
     with st.spinner("Uploading and triggering ingestion..."):
+        # Save the uploaded file locally so the backend can read it from disk.
         path = save_uploaded_pdf(uploaded)
-        # Kick off the event and block until the send completes
+        # Send the ingestion event and wait until the event submission completes.
         asyncio.run(send_rag_ingest_event(path))
-        # Small pause for user feedback continuity
+        # Short delay to make the UI transition feel smoother.
         time.sleep(0.3)
     st.success(f"Triggered ingestion for: {path.name}")
     st.caption("You can upload another PDF if you like.")
@@ -58,6 +87,11 @@ st.title("Ask a question about your PDFs")
 
 
 async def send_rag_query_event(question: str, top_k: int) -> None:
+    """Send a question event and return the created Inngest event ID.
+
+    The returned event ID is important because it lets the UI ask Inngest
+    about the status and final output of the workflow run.
+    """
     client = get_inngest_client()
     result = await client.send(
         inngest.Event(
@@ -73,11 +107,17 @@ async def send_rag_query_event(question: str, top_k: int) -> None:
 
 
 def _inngest_api_base() -> str:
+    """Return the base URL for the local Inngest development API."""
     # Local dev server default; configurable via env
     return os.getenv("INNGEST_API_BASE", "http://127.0.0.1:8288/v1")
 
 
 def fetch_runs(event_id: str) -> list[dict]:
+    """Fetch workflow runs associated with a previously sent event.
+
+    One sent event can create one or more runs. In this app, we read the
+    first run and use it to inspect status and output.
+    """
     url = f"{_inngest_api_base()}/events/{event_id}/runs"
     resp = requests.get(url)
     resp.raise_for_status()
@@ -86,6 +126,14 @@ def fetch_runs(event_id: str) -> list[dict]:
 
 
 def wait_for_run_output(event_id: str, timeout_s: float = 120.0, poll_interval_s: float = 0.5) -> dict:
+    """Poll Inngest until the run finishes and then return its output.
+
+    This function repeatedly checks the run status until one of three things
+    happens:
+    - the run succeeds, so we return its output
+    - the run fails, so we raise an error
+    - the timeout is reached, so we stop waiting
+    """
     start = time.time()
     last_status = None
     while True:
@@ -110,9 +158,9 @@ with st.form("rag_query_form"):
 
     if submitted and question.strip():
         with st.spinner("Sending event and generating answer..."):
-            # Fire-and-forget event to Inngest for observability/workflow
+            # Send the question as an event so the backend workflow can handle it.
             event_id = asyncio.run(send_rag_query_event(question.strip(), int(top_k)))
-            # Poll the local Inngest API for the run's output
+            # Poll the local Inngest API until the workflow returns an output.
             output = wait_for_run_output(event_id)
             answer = output.get("answer", "")
             sources = output.get("sources", [])
