@@ -50,6 +50,18 @@ def save_uploaded_pdf(file) -> Path:
     return file_path
 
 
+def list_available_sources() -> list[str]:
+    """Return currently available source IDs for UI filtering.
+
+    For now we use local uploaded PDF names as source IDs because ingestion
+    stores `source_id` as the uploaded filename.
+    """
+    uploads_dir = Path("uploads")
+    if not uploads_dir.exists():
+        return []
+    return sorted({p.name for p in uploads_dir.glob("*.pdf") if p.is_file()})
+
+
 async def send_rag_ingest_event(pdf_path: Path) -> None:
     """Send an event telling the backend to ingest the saved PDF.
 
@@ -86,20 +98,24 @@ st.divider()
 st.title("Ask a question about your PDFs")
 
 
-async def send_rag_query_event(question: str, top_k: int) -> None:
+async def send_rag_query_event(question: str, top_k: int, source_id: str | None = None) -> None:
     """Send a question event and return the created Inngest event ID.
 
     The returned event ID is important because it lets the UI ask Inngest
     about the status and final output of the workflow run.
     """
     client = get_inngest_client()
+    event_data = {
+        "question": question,
+        "top_k": top_k,
+    }
+    if source_id:
+        event_data["source_id"] = source_id
+
     result = await client.send(
         inngest.Event(
             name="rag/query_pdf_ai",
-            data={
-                "question": question,
-                "top_k": top_k,
-            },
+            data=event_data,
         )
     )
 
@@ -154,12 +170,16 @@ def wait_for_run_output(event_id: str, timeout_s: float = 120.0, poll_interval_s
 with st.form("rag_query_form"):
     question = st.text_input("Your question")
     top_k = st.number_input("How many chunks to retrieve", min_value=1, max_value=20, value=5, step=1)
+    sources = list_available_sources()
+    source_options = ["All sources", *sources]
+    selected_source = st.selectbox("Limit search to a source", options=source_options, index=0)
     submitted = st.form_submit_button("Ask")
 
     if submitted and question.strip():
         with st.spinner("Sending event and generating answer..."):
+            source_filter = None if selected_source == "All sources" else selected_source
             # Send the question as an event so the backend workflow can handle it.
-            event_id = asyncio.run(send_rag_query_event(question.strip(), int(top_k)))
+            event_id = asyncio.run(send_rag_query_event(question.strip(), int(top_k), source_filter))
             # Poll the local Inngest API until the workflow returns an output.
             output = wait_for_run_output(event_id)
             answer = output.get("answer", "")
