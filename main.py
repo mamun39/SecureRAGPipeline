@@ -98,6 +98,7 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
     Expected event data:
     - `question`: the user's question
     - `top_k` (optional): how many relevant chunks to retrieve from Qdrant
+    - `source_id` (optional): restrict retrieval to one ingested source
 
     High-level workflow:
     1. Embed the question into a vector.
@@ -106,17 +107,22 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
     4. Return the answer plus the sources used.
     """
 
-    def _search(question: str, top_k: int = 5) -> RAGSearchResult:
+    def _search(question: str, top_k: int = 5, source_id: str | None = None) -> RAGSearchResult:
         """Find the most relevant stored chunks for the user's question."""
         query_vec = embed_texts([question])[0]
         store = QdrantStorage()
-        found = store.search(query_vec, top_k)
+        found = store.search(query_vec, top_k, source_id=source_id)
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
 
     question = ctx.event.data["question"]
     top_k = int(ctx.event.data.get("top_k", 5))
+    source_id = ctx.event.data.get("source_id")
 
-    found = await ctx.step.run("embed-and-search", lambda: _search(question, top_k), output_type=RAGSearchResult)
+    found = await ctx.step.run(
+        "embed-and-search",
+        lambda: _search(question, top_k, source_id=source_id),
+        output_type=RAGSearchResult,
+    )
 
     # Join the retrieved chunks into one block of text that the model can read.
     context_block = "\n\n".join(f"- {c}" for c in found.contexts)
