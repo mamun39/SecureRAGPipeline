@@ -11,7 +11,14 @@ good at answering: "Which stored vectors are closest to this new vector?"
 """
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import (
+    VectorParams,
+    Distance,
+    PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
+)
 
 
 class QdrantStorage:
@@ -60,23 +67,37 @@ class QdrantStorage:
         ]
         self.client.upsert(collection_name=self.collection, points=points)
 
-    def search(self, query_vector, top_k: int = 5):
+    def search(self, query_vector, top_k: int = 5, source_id: str | None = None):
         """Search for the most relevant stored chunks for a query vector.
 
         Args:
             query_vector: The embedding of the user's question.
             top_k: Maximum number of nearest matches to return.
+            source_id: Optional source filter. If provided, only chunks from
+                this source will be searched.
 
         Returns:
             A dictionary containing:
             - `contexts`: the matching chunk texts
             - `sources`: the unique source identifiers for those chunks
         """
+        query_filter = None
+        if source_id:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="source",
+                        match=MatchValue(value=source_id),
+                    )
+                ]
+            )
+
         response = self.client.query_points(
             collection_name=self.collection,
             query=query_vector,
             with_payload=True,
             limit=top_k,
+            query_filter=query_filter,
         )
 
         # In this qdrant-client version, nearest-neighbor results live inside
@@ -97,7 +118,6 @@ class QdrantStorage:
                 sources.add(source)
 
         return {"contexts": contexts, "sources": list(sources)}
-
 
 
 
