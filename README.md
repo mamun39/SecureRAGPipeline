@@ -29,6 +29,91 @@ The backend is event-driven:
 - Inngest listens for named events.
 - When an event arrives, Inngest runs the matching function.
 
+### Architecture Overview
+
+```mermaid
+flowchart LR
+    U[User]
+    S[Streamlit UI<br/>streamlit_app.py]
+    UP[(uploads/*.pdf)]
+    I[Inngest Dev Server<br/>:8288]
+    A[FastAPI + Inngest Functions<br/>main.py :8000]
+    D[data_loader.py<br/>PDF load/chunk + embeddings]
+    Q[vector_db.py<br/>QdrantStorage]
+    V[(Qdrant<br/>:6333)]
+    O[(OpenAI API)]
+
+    U -->|Upload PDF / Ask Question| S
+    S -->|Save upload| UP
+    S -->|Send rag/ingest_pdf<br/>or rag/query_pdf_ai| I
+    I -->|Deliver event| A
+
+    A -->|Ingest flow| D
+    D -->|Embeddings| O
+    A -->|Upsert/search vectors| Q
+    Q --> V
+
+    A -->|Query flow: LLM answer with retrieved context| O
+    A -->|Run output| I
+    I -->|Poll run status + output| S
+    S -->|Answer + sources| U
+```
+
+### Ingestion Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant S as Streamlit UI
+    participant I as Inngest Dev Server
+    participant A as FastAPI + Inngest Function
+    participant D as data_loader.py
+    participant O as OpenAI API
+    participant Q as Qdrant
+
+    U->>S: Upload PDF
+    S->>S: Save file to uploads/*.pdf
+    S->>I: Send event rag/ingest_pdf\n(pdf_path, source_id)
+    I->>A: Trigger rag_inngest_pdf
+    A->>D: load_and_chunk_pdf(pdf_path)
+    D-->>A: chunks
+    A->>O: embed_texts(chunks)
+    O-->>A: vectors
+    A->>Q: upsert(ids, vectors, payloads)
+    Q-->>A: upsert complete
+    A-->>I: Function output {ingested: N}
+    I-->>S: Run status/output available
+    S-->>U: Show ingestion triggered/success
+```
+
+### Query Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant S as Streamlit UI
+    participant I as Inngest Dev Server
+    participant A as FastAPI + Inngest Function
+    participant O as OpenAI API
+    participant Q as Qdrant
+
+    U->>S: Enter question (+ optional source filter)
+    S->>I: Send event rag/query_pdf_ai\n(question, top_k, source_id?)
+    I->>A: Trigger rag_query_pdf_ai
+    A->>O: embed_texts([question])
+    O-->>A: query vector
+    A->>Q: search(query_vector, top_k, source_id?)
+    Q-->>A: contexts + sources
+    A->>O: LLM inference with retrieved context
+    O-->>A: answer
+    A-->>I: Function output {answer, sources, num_contexts}
+    S->>I: Poll runs for event_id until complete
+    I-->>S: Return run output
+    S-->>U: Display answer + sources
+```
+
 The ingest flow is:
 
 1. Receive a PDF event.
