@@ -83,8 +83,8 @@ sequenceDiagram
     A->>Q: upsert(ids, vectors, payloads)
     Q-->>A: upsert complete
     A-->>I: Function output {ingested: N}
-    I-->>S: Run status/output available
-    S-->>U: Show ingestion triggered/success
+    I-->>S: Event accepted
+    S-->>U: Show ingestion triggered
 ```
 
 ### Query Sequence
@@ -101,6 +101,7 @@ sequenceDiagram
 
     U->>S: Enter question (+ optional source filter)
     S->>I: Send event rag/query_pdf_ai\n(question, top_k, source_id?)
+    S->>I: Start polling runs for event_id
     I->>A: Trigger rag_query_pdf_ai
     A->>O: embed_texts([question])
     O-->>A: query vector
@@ -109,8 +110,10 @@ sequenceDiagram
     A->>O: LLM inference with retrieved context
     O-->>A: answer
     A-->>I: Function output {answer, sources, num_contexts}
-    S->>I: Poll runs for event_id until complete
-    I-->>S: Return run output
+    loop Poll until run complete
+        S->>I: GET /events/{event_id}/runs
+        I-->>S: Run status / output if complete
+    end
     S-->>U: Display answer + sources
 ```
 
