@@ -49,13 +49,15 @@ flowchart LR
     I -->|Deliver event| A
 
     A -->|Ingest flow| D
+    A -->|Query embedding| D
     D -->|Embeddings| O
     A -->|Upsert/search vectors| Q
     Q --> V
 
     A -->|Query flow: LLM answer with retrieved context| O
     A -->|Run output| I
-    I -->|Poll run status + output| S
+    S -->|Poll run status| I
+    I -->|Return run output| S
     S -->|Answer + sources| U
 ```
 
