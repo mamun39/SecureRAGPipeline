@@ -37,6 +37,7 @@ from custom_types import (
 from security_ingestion import scan_document_text
 from security_retrieval_policy import allowed_classifications_for_role
 from security_safe_context import build_safe_context
+from security_output_filter import screen_generated_answer
 
 # Load values from the local .env file before the app starts.
 # This is where API keys and other local configuration usually live.
@@ -212,7 +213,18 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
     )
 
     answer = res["choices"][0]["message"]["content"].strip()
-    return {"answer": answer, "sources": found.sources, "num_contexts": len(safe_chunks)}
+    output_filter_result = screen_generated_answer(answer)
+    if output_filter_result.decision != "allow":
+        logging.getLogger("uvicorn").warning(
+            "Output filter decision=%s reasons=%s",
+            output_filter_result.decision,
+            ",".join(output_filter_result.reasons) or "none",
+        )
+    return {
+        "answer": output_filter_result.filtered_text,
+        "sources": found.sources,
+        "num_contexts": len(safe_chunks),
+    }
 
 # FastAPI hosts the HTTP endpoint that Inngest talks to.
 app = FastAPI()

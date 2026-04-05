@@ -42,6 +42,14 @@ class IngestScanResult(pydantic.BaseModel):
     decision: str = "allow"
 
 
+class OutputFilterResult(pydantic.BaseModel):
+    """Result of screening a generated answer before returning it."""
+
+    decision: str = "allow"
+    filtered_text: str
+    reasons: list[str] = pydantic.Field(default_factory=list)
+
+
 class RetrievalPolicyContext(pydantic.BaseModel):
     """App-layer policy inputs for retrieval filtering."""
 
