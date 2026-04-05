@@ -38,6 +38,7 @@ from security_ingestion import scan_document_text
 from security_retrieval_policy import allowed_classifications_for_role
 from security_safe_context import build_safe_context
 from security_output_filter import screen_generated_answer
+from security_audit import log_security_event
 
 # Load values from the local .env file before the app starts.
 # This is where API keys and other local configuration usually live.
@@ -89,10 +90,24 @@ async def rag_inngest_pdf(ctx: inngest.Context):
         source_id = chunks_and_src.source_id
         created_at = datetime.datetime.now(datetime.UTC).isoformat()
         scan_result = scan_document_text("\n".join(chunks))
+        log_security_event(
+            "ingestion_scan_result",
+            source_id=source_id,
+            score=scan_result.score,
+            flags=scan_result.flags,
+            decision=scan_result.decision,
+            chunk_count=len(chunks),
+        )
         if scan_result.decision == "quarantine":
             message = (
                 f"Quarantined document '{source_id}' during ingestion due to "
                 f"scan flags: {', '.join(scan_result.flags) or 'none'}"
+            )
+            log_security_event(
+                "quarantine_decision",
+                source_id=source_id,
+                flags=scan_result.flags,
+                reason=message,
             )
             logging.getLogger("uvicorn").warning(message)
             return RAGUpsertResult(
@@ -170,7 +185,28 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
             allowed_classifications=allowed_classifications_for_role(user_role),
             allow_low_trust=False,
         )
+        log_security_event(
+            "retrieval_policy_context_used",
+            tenant_id=policy_context.tenant_id,
+            user_role=policy_context.user_role,
+            allowed_classifications=policy_context.allowed_classifications,
+            allow_low_trust=policy_context.allow_low_trust,
+            source_id=source_id,
+        )
         found = store.search(query_vec, top_k, source_id=source_id, policy_context=policy_context)
+        log_security_event(
+            "retrieved_chunk_identifiers",
+            source_id=source_id,
+            chunk_count=len(found["chunks"]),
+            chunks=[
+                {
+                    "source": chunk.source,
+                    "classification": chunk.classification,
+                    "trust_level": chunk.trust_level,
+                }
+                for chunk in found["chunks"]
+            ],
+        )
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"], chunks=found["chunks"])
 
     question = ctx.event.data["question"]
@@ -214,6 +250,12 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
 
     answer = res["choices"][0]["message"]["content"].strip()
     output_filter_result = screen_generated_answer(answer)
+    log_security_event(
+        "output_filter_decision",
+        decision=output_filter_result.decision,
+        reasons=output_filter_result.reasons,
+        answer_length=len(answer),
+    )
     if output_filter_result.decision != "allow":
         logging.getLogger("uvicorn").warning(
             "Output filter decision=%s reasons=%s",

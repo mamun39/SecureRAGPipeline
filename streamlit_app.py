@@ -19,6 +19,7 @@ import inngest
 from dotenv import load_dotenv
 import os
 import requests
+from security_audit import log_security_event
 
 # Load local environment variables before creating clients or reading settings.
 load_dotenv()
@@ -87,6 +88,12 @@ if uploaded is not None:
     with st.spinner("Uploading and triggering ingestion..."):
         # Save the uploaded file locally so the backend can read it from disk.
         path = save_uploaded_pdf(uploaded)
+        log_security_event(
+            "upload_received",
+            source_id=path.name,
+            pdf_path=str(path.resolve()),
+            size_bytes=path.stat().st_size,
+        )
         # Send the ingestion event and wait until the event submission completes.
         asyncio.run(send_rag_ingest_event(path))
         # Short delay to make the UI transition feel smoother.
