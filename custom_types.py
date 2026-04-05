@@ -7,6 +7,41 @@ can declare exactly what shape of data it expects and returns.
 import pydantic
 
 
+class ChunkSecurityMetadata(pydantic.BaseModel):
+    """Security-related metadata stored with each chunk payload.
+
+    These fields are intentionally simple defaults for the demo app so later
+    phases can add scanning, authorization, and safety logic without needing
+    to redesign the stored payload shape.
+    """
+
+    doc_id: str
+    chunk_id: str
+    tenant_id: str = "demo"
+    owner_id: str = "local_user"
+    classification: str = "internal"
+    trust_level: str = "user_uploaded"
+    ingest_scan_flags: list[str] = pydantic.Field(default_factory=list)
+    ingest_decision: str = "allow"
+    content_hash: str
+    created_at: str
+
+
+class RAGChunkPayload(ChunkSecurityMetadata):
+    """Full payload stored in Qdrant for one chunk."""
+
+    source: str
+    text: str
+
+
+class IngestScanResult(pydantic.BaseModel):
+    """Result of a basic ingestion-time security scan."""
+
+    score: int = 0
+    flags: list[str] = pydantic.Field(default_factory=list)
+    decision: str = "allow"
+
+
 class RAGChunkAndSrc(pydantic.BaseModel):
     """Represents text chunks extracted from one source document.
 
