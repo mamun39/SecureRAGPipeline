@@ -15,6 +15,7 @@ The important beginner-friendly idea is this:
 """
 
 import logging
+import hashlib
 from fastapi import FastAPI
 import inngest
 import inngest.fast_api
@@ -25,7 +26,8 @@ import os
 import datetime
 from data_loader import load_and_chunk_pdf, embed_texts
 from vector_db import QdrantStorage
-from custom_types import RAGQueryResult, RAGSearchResult, RAGUpsertResult, RAGChunkAndSrc
+from custom_types import RAGQueryResult, RAGSearchResult, RAGUpsertResult, RAGChunkAndSrc, RAGChunkPayload
+from security_ingestion import scan_document_text
 
 # Load values from the local .env file before the app starts.
 # This is where API keys and other local configuration usually live.
@@ -75,9 +77,24 @@ async def rag_inngest_pdf(ctx: inngest.Context):
         """
         chunks = chunks_and_src.chunks
         source_id = chunks_and_src.source_id
+        created_at = datetime.datetime.now(datetime.UTC).isoformat()
+        scan_result = scan_document_text("\n".join(chunks))
+        # Later phases can enforce quarantine here before embedding/upsert.
         vecs = embed_texts(chunks)
         ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_id}:{i}")) for i in range(len(chunks))]
-        payloads = [{"source": source_id, "text": chunks[i]} for i in range(len(chunks))]
+        payloads = [
+            RAGChunkPayload(
+                doc_id=source_id,
+                chunk_id=ids[i],
+                source=source_id,
+                text=chunks[i],
+                ingest_scan_flags=scan_result.flags,
+                ingest_decision=scan_result.decision,
+                content_hash=hashlib.sha256(chunks[i].encode("utf-8")).hexdigest(),
+                created_at=created_at,
+            ).model_dump()
+            for i in range(len(chunks))
+        ]
         QdrantStorage().upsert(ids, vecs, payloads)
         return RAGUpsertResult(ingested=len(chunks))
 
