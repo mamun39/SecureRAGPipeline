@@ -20,7 +20,7 @@ from qdrant_client.models import (
     MatchValue,
 )
 
-from custom_types import RetrievalPolicyContext
+from custom_types import RetrievalPolicyContext, RetrievedChunk
 from security_retrieval_policy import build_retrieval_filter
 
 
@@ -118,18 +118,33 @@ class QdrantStorage:
 
         contexts = []
         sources = set()
+        chunks = []
 
         for r in results:
             # The payload is the metadata we stored during `upsert(...)`.
             payload = getattr(r, "payload", None) or {}
             text = payload.get("text", "")
             source = payload.get("source", "")
+            classification = payload.get("classification", "internal")
+            trust_level = payload.get("trust_level", "user_uploaded")
+            ingest_decision = payload.get("ingest_decision", "allow")
+            ingest_scan_flags = payload.get("ingest_scan_flags", [])
             if text:
                 contexts.append(text)
+                chunks.append(
+                    RetrievedChunk(
+                        text=text,
+                        source=source,
+                        classification=classification,
+                        trust_level=trust_level,
+                        ingest_decision=ingest_decision,
+                        ingest_scan_flags=ingest_scan_flags,
+                    )
+                )
             if source:
                 sources.add(source)
 
-        return {"contexts": contexts, "sources": list(sources)}
+        return {"contexts": contexts, "sources": list(sources), "chunks": chunks}
 
 
 
