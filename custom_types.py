@@ -51,6 +51,17 @@ class RetrievalPolicyContext(pydantic.BaseModel):
     allow_low_trust: bool = False
 
 
+class RetrievedChunk(pydantic.BaseModel):
+    """Retrieved chunk plus payload metadata needed for safe prompt assembly."""
+
+    text: str
+    source: str = ""
+    classification: str = "internal"
+    trust_level: str = "user_uploaded"
+    ingest_decision: str = "allow"
+    ingest_scan_flags: list[str] = pydantic.Field(default_factory=list)
+
+
 class RAGChunkAndSrc(pydantic.BaseModel):
     """Represents text chunks extracted from one source document.
 
@@ -85,10 +96,12 @@ class RAGSearchResult(pydantic.BaseModel):
     Attributes:
         contexts: The retrieved text chunks relevant to the user's question.
         sources: The unique source identifiers for those chunks.
+        chunks: Retrieved chunks with metadata for safe context building.
     """
 
     contexts: list[str]
     sources: list[str]
+    chunks: list[RetrievedChunk] = pydantic.Field(default_factory=list)
 
 
 class RAGQueryResult(pydantic.BaseModel):

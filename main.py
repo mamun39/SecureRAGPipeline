@@ -36,6 +36,7 @@ from custom_types import (
 )
 from security_ingestion import scan_document_text
 from security_retrieval_policy import allowed_classifications_for_role
+from security_safe_context import build_safe_context
 
 # Load values from the local .env file before the app starts.
 # This is where API keys and other local configuration usually live.
@@ -169,7 +170,7 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
             allow_low_trust=False,
         )
         found = store.search(query_vec, top_k, source_id=source_id, policy_context=policy_context)
-        return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
+        return RAGSearchResult(contexts=found["contexts"], sources=found["sources"], chunks=found["chunks"])
 
     question = ctx.event.data["question"]
     top_k = int(ctx.event.data.get("top_k", 5))
@@ -181,8 +182,7 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
         output_type=RAGSearchResult,
     )
 
-    # Join the retrieved chunks into one block of text that the model can read.
-    context_block = "\n\n".join(f"- {c}" for c in found.contexts)
+    context_block, safe_chunks = build_safe_context(found.chunks)
     user_content = (
         "Use the following context to answer the question. \n\n"
         f"Context:\n{context_block}\n\n"
@@ -212,7 +212,7 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
     )
 
     answer = res["choices"][0]["message"]["content"].strip()
-    return {"answer": answer, "sources": found.sources, "num_contexts": len(found.contexts)}
+    return {"answer": answer, "sources": found.sources, "num_contexts": len(safe_chunks)}
 
 # FastAPI hosts the HTTP endpoint that Inngest talks to.
 app = FastAPI()
