@@ -20,6 +20,9 @@ from qdrant_client.models import (
     MatchValue,
 )
 
+from custom_types import RetrievalPolicyContext
+from security_retrieval_policy import build_retrieval_filter
+
 
 class QdrantStorage:
     """Convenience wrapper for one Qdrant collection.
@@ -67,7 +70,13 @@ class QdrantStorage:
         ]
         self.client.upsert(collection_name=self.collection, points=points)
 
-    def search(self, query_vector, top_k: int = 5, source_id: str | None = None):
+    def search(
+        self,
+        query_vector,
+        top_k: int = 5,
+        source_id: str | None = None,
+        policy_context: RetrievalPolicyContext | None = None,
+    ):
         """Search for the most relevant stored chunks for a query vector.
 
         Args:
@@ -75,6 +84,7 @@ class QdrantStorage:
             top_k: Maximum number of nearest matches to return.
             source_id: Optional source filter. If provided, only chunks from
                 this source will be searched.
+            policy_context: Optional app-layer retrieval policy context.
 
         Returns:
             A dictionary containing:
@@ -82,7 +92,9 @@ class QdrantStorage:
             - `sources`: the unique source identifiers for those chunks
         """
         query_filter = None
-        if source_id:
+        if policy_context:
+            query_filter = build_retrieval_filter(policy_context, source_id=source_id)
+        elif source_id:
             query_filter = Filter(
                 must=[
                     FieldCondition(

@@ -26,7 +26,14 @@ import os
 import datetime
 from data_loader import load_and_chunk_pdf, embed_texts
 from vector_db import QdrantStorage
-from custom_types import RAGQueryResult, RAGSearchResult, RAGUpsertResult, RAGChunkAndSrc, RAGChunkPayload
+from custom_types import (
+    RAGQueryResult,
+    RAGSearchResult,
+    RAGUpsertResult,
+    RAGChunkAndSrc,
+    RAGChunkPayload,
+    RetrievalPolicyContext,
+)
 from security_ingestion import scan_document_text
 
 # Load values from the local .env file before the app starts.
@@ -152,7 +159,13 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
         """Find the most relevant stored chunks for the user's question."""
         query_vec = embed_texts([question])[0]
         store = QdrantStorage()
-        found = store.search(query_vec, top_k, source_id=source_id)
+        policy_context = RetrievalPolicyContext(
+            tenant_id="demo",
+            user_role="user",
+            allowed_classifications=["public", "internal"],
+            allow_low_trust=False,
+        )
+        found = store.search(query_vec, top_k, source_id=source_id, policy_context=policy_context)
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
 
     question = ctx.event.data["question"]
