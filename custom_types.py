@@ -59,9 +59,15 @@ class RAGUpsertResult(pydantic.BaseModel):
 
     Attributes:
         ingested: Number of chunks successfully prepared and stored.
+        scan_decision: Final ingestion scan decision for the document.
+        scan_flags: Suspicious phrases detected during ingestion scanning.
+        message: Human-readable ingestion status.
     """
 
     ingested: int
+    scan_decision: str = "allow"
+    scan_flags: list[str] = pydantic.Field(default_factory=list)
+    message: str | None = None
 
 
 class RAGSearchResult(pydantic.BaseModel):

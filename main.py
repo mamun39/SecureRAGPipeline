@@ -79,7 +79,26 @@ async def rag_inngest_pdf(ctx: inngest.Context):
         source_id = chunks_and_src.source_id
         created_at = datetime.datetime.now(datetime.UTC).isoformat()
         scan_result = scan_document_text("\n".join(chunks))
-        # Later phases can enforce quarantine here before embedding/upsert.
+        if scan_result.decision == "quarantine":
+            message = (
+                f"Quarantined document '{source_id}' during ingestion due to "
+                f"scan flags: {', '.join(scan_result.flags) or 'none'}"
+            )
+            logging.getLogger("uvicorn").warning(message)
+            return RAGUpsertResult(
+                ingested=0,
+                scan_decision=scan_result.decision,
+                scan_flags=scan_result.flags,
+                message=message,
+            )
+
+        if scan_result.decision == "review":
+            logging.getLogger("uvicorn").info(
+                "Ingesting review-marked document '%s' with scan flags: %s",
+                source_id,
+                ", ".join(scan_result.flags) or "none",
+            )
+
         vecs = embed_texts(chunks)
         ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_id}:{i}")) for i in range(len(chunks))]
         payloads = [
@@ -96,7 +115,12 @@ async def rag_inngest_pdf(ctx: inngest.Context):
             for i in range(len(chunks))
         ]
         QdrantStorage().upsert(ids, vecs, payloads)
-        return RAGUpsertResult(ingested=len(chunks))
+        return RAGUpsertResult(
+            ingested=len(chunks),
+            scan_decision=scan_result.decision,
+            scan_flags=scan_result.flags,
+            message=f"Ingested document '{source_id}' with decision '{scan_result.decision}'.",
+        )
 
     # `ctx.step.run(...)` tells Inngest to treat each block as a named step.
     # That makes the function easier to inspect and retry in the Inngest UI.
