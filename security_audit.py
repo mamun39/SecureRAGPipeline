@@ -1,14 +1,10 @@
-"""Small helper for structured security event logging."""
+"""Compatibility re-exports for structured security audit logging."""
 
-import json
-import logging
+from pathlib import Path
+import sys
 
+_SRC_PATH = Path(__file__).resolve().parent / "src"
+if str(_SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(_SRC_PATH))
 
-def log_security_event(event_type: str, **fields) -> None:
-    """Emit a compact JSON-style security log event."""
-    logger = logging.getLogger("uvicorn")
-    payload = {
-        "event_type": event_type,
-        **fields,
-    }
-    logger.info(json.dumps(payload, sort_keys=True, default=str))
+from ragagent.security.audit import *  # noqa: F401,F403

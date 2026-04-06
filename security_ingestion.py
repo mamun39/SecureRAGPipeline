@@ -1,36 +1,10 @@
-"""Basic ingestion-time scanning for suspicious document content.
+"""Compatibility re-exports for ingestion scanning."""
 
-This module intentionally keeps detection simple. It gives the ingestion flow
-just enough structure to tag uploaded content for later policy enforcement.
-"""
+from pathlib import Path
+import sys
 
-from custom_types import IngestScanResult
+_SRC_PATH = Path(__file__).resolve().parent / "src"
+if str(_SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(_SRC_PATH))
 
-
-SUSPICIOUS_PHRASES = [
-    "ignore previous instructions",
-    "reveal system prompt",
-    "exfiltrate",
-    "system prompt",
-    "execute",
-]
-
-
-def scan_document_text(text: str) -> IngestScanResult:
-    """Scan extracted document text and return a lightweight risk result."""
-    normalized_text = text.lower()
-    flags: list[str] = []
-
-    for phrase in SUSPICIOUS_PHRASES:
-        if phrase in normalized_text:
-            flags.append(phrase)
-
-    score = len(flags)
-    if score >= 3:
-        decision = "quarantine"
-    elif score >= 1:
-        decision = "review"
-    else:
-        decision = "allow"
-
-    return IngestScanResult(score=score, flags=flags, decision=decision)
+from ragagent.security.ingestion_scanner import *  # noqa: F401,F403
