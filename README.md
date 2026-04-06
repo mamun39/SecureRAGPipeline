@@ -4,6 +4,11 @@ A small security-aware Retrieval-Augmented Generation (RAG) demo built with Fast
 
 It demonstrates layered app-level controls around document ingestion, retrieval, prompt context assembly, output screening, and audit logging. It is a demo of defense-in-depth patterns, not a hardened security boundary.
 
+Further documentation:
+
+- [Security Architecture](/C:/Users/MRAka/PycharmProjects/RAGAgent/docs/security-architecture.md)
+- [Roadmap](/C:/Users/MRAka/PycharmProjects/RAGAgent/docs/roadmap.md)
+
 ## What This Demonstrates
 
 - PDF ingestion into a vector store
@@ -95,6 +100,8 @@ Compatibility entrypoint:
 | Safe context | Context filtering + untrusted-text instruction | Quarantined and flagged/review chunks are excluded before prompt assembly | Heuristic and conservative rather than nuanced |
 | Output filter | Simple answer screening | Blocks obvious secret-like output and restricted-looking dumps; redacts some simple sensitive patterns | Heuristic only; not robust DLP |
 | Audit logging | Structured local logs | Logs upload, scan, quarantine, retrieval policy, retrieval summary, and output filter decisions | Local logs only; not durable or tamper-evident |
+
+For more detail on control placement and current behavior, see [Security Architecture](/C:/Users/MRAka/PycharmProjects/RAGAgent/docs/security-architecture.md).
 
 ## Known Demo Defaults
 
@@ -284,6 +291,8 @@ The current system should be treated as a security-aware demo, not a hardened se
 - support trusted document metadata rather than defaults
 - improve output screening and evaluation coverage
 - move audit logs to durable storage
+
+The fuller phased plan lives in [Roadmap](/C:/Users/MRAka/PycharmProjects/RAGAgent/docs/roadmap.md).
 
 ## Credit
 
