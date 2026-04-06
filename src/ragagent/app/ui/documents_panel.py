@@ -7,8 +7,8 @@ from ..services.document_service import load_document_summaries
 
 def render_documents_panel() -> None:
     """Render the document explorer from stored Qdrant metadata."""
-    st.divider()
-    st.title("Documents")
+    st.subheader("Documents")
+    st.caption("Browse stored document metadata as it currently exists in Qdrant.")
 
     documents, document_error = load_document_summaries()
     if document_error:
@@ -24,7 +24,7 @@ def render_documents_panel() -> None:
     docs_col2.metric("Stored chunks", sum(doc["chunk_count"] for doc in documents))
     st.dataframe(
         documents,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_order=[
             "source",

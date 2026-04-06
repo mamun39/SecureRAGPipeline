@@ -11,11 +11,24 @@ from ragagent.app.ui.query_panel import render_query_panel
 
 load_dotenv()
 
-st.set_page_config(page_title="RAG Ingest PDF", page_icon="PDF", layout="centered")
+st.set_page_config(page_title="RAG Security Console", page_icon="PDF", layout="wide")
 st.session_state.setdefault("latest_ingestion_output", None)
 st.session_state.setdefault("latest_query_output", None)
-render_ingest_panel()
-render_query_panel()
 
-render_documents_panel()
-render_audit_panel()
+st.title("Security-Aware RAG Console")
+st.caption(
+    "Inspect ingestion decisions, retrieval policy behavior, safe-context filtering, "
+    "document metadata, and recent audit events in one place."
+)
+
+top_col1, top_col2 = st.columns([1, 1.4], gap="large")
+with top_col1:
+    render_ingest_panel()
+with top_col2:
+    render_query_panel()
+
+bottom_col1, bottom_col2 = st.columns([1.15, 0.85], gap="large")
+with bottom_col1:
+    render_documents_panel()
+with bottom_col2:
+    render_audit_panel()

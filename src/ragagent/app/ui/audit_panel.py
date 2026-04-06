@@ -7,8 +7,8 @@ from ...security.audit import read_recent_security_events
 
 def render_audit_panel(limit: int = 20) -> None:
     """Render recent structured security events from the local audit log."""
-    st.divider()
-    st.title("Audit Events")
+    st.subheader("Audit Events")
+    st.caption("Recent structured security events emitted by the demo pipeline.")
 
     events = read_recent_security_events(limit=limit)
     if not events:

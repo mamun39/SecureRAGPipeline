@@ -32,6 +32,7 @@ class RAGUpsertResult(pydantic.BaseModel):
     """Represents the result of storing chunk embeddings in the vector database."""
 
     ingested: int
+    classification: str = "internal"
     scan_decision: str = "allow"
     scan_flags: list[str] = pydantic.Field(default_factory=list)
     message: str | None = None

@@ -15,7 +15,7 @@ def get_inngest_client() -> inngest.Inngest:
     return inngest.Inngest(app_id="rag_app", is_production=False)
 
 
-async def send_rag_ingest_event(pdf_path: Path) -> str:
+async def send_rag_ingest_event(pdf_path: Path, classification: str = "internal") -> str:
     """Send an event telling the backend to ingest the saved PDF."""
     client = get_inngest_client()
     result = await client.send(
@@ -24,6 +24,7 @@ async def send_rag_ingest_event(pdf_path: Path) -> str:
             data={
                 "pdf_path": str(pdf_path.resolve()),
                 "source_id": pdf_path.name,
+                "classification": classification,
             },
         )
     )

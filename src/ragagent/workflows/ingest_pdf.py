@@ -28,6 +28,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
     def _upsert(chunks_and_src: RAGChunkAndSrc) -> RAGUpsertResult:
         chunks = chunks_and_src.chunks
         source_id = chunks_and_src.source_id
+        classification = ctx.event.data.get("classification", "internal")
         created_at = datetime.datetime.now(datetime.UTC).isoformat()
         scan_result = scan_document_text("\n".join(chunks))
         log_security_event(
@@ -52,6 +53,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
             logging.getLogger("uvicorn").warning(message)
             return RAGUpsertResult(
                 ingested=0,
+                classification=classification,
                 scan_decision=scan_result.decision,
                 scan_flags=scan_result.flags,
                 message=message,
@@ -72,6 +74,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
                 chunk_id=ids[i],
                 source=source_id,
                 text=chunks[i],
+                classification=classification,
                 ingest_scan_flags=scan_result.flags,
                 ingest_decision=scan_result.decision,
                 content_hash=hashlib.sha256(chunks[i].encode("utf-8")).hexdigest(),
@@ -82,6 +85,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
         QdrantStorage().upsert(ids, vecs, payloads)
         return RAGUpsertResult(
             ingested=len(chunks),
+            classification=classification,
             scan_decision=scan_result.decision,
             scan_flags=scan_result.flags,
             message=f"Ingested document '{source_id}' with decision '{scan_result.decision}'.",

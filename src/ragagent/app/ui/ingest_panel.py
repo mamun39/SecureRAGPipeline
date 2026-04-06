@@ -20,13 +20,26 @@ def save_uploaded_pdf(file) -> Path:
 
 def render_ingest_panel() -> None:
     """Render the upload flow and latest ingestion result."""
-    st.title("Upload a PDF to Ingest")
+    st.subheader("Ingest")
+    st.caption("Upload a PDF and inspect the latest ingestion security outcome.")
     with st.expander("Demo hints", expanded=False):
         st.write("To demonstrate ingestion security behavior:")
         st.write("- Upload a normal PDF to see an `allow` decision.")
-        st.write("- Include phrases like `ignore previous instructions`, `reveal system prompt`, or `exfiltrate` to trigger `review` or `quarantine`.")
-        st.write("- Newly ingested documents default to `classification=internal`, so a `public` query may return no context.")
-    uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=False)
+        st.write(
+            "- Include phrases like `ignore previous instructions`, `reveal system prompt`, "
+            "or `exfiltrate` to trigger `review` or `quarantine`."
+        )
+        st.write(
+            "- You can classify the document before ingestion to demonstrate "
+            "different retrieval outcomes by role."
+        )
+    classification = st.selectbox(
+        "Classification",
+        options=["public", "internal", "confidential", "restricted"],
+        index=1,
+        key="ingest_classification",
+    )
+    uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=False, key="ingest_upload")
 
     if uploaded is not None:
         with st.spinner("Uploading and triggering ingestion..."):
@@ -37,7 +50,7 @@ def render_ingest_panel() -> None:
                 pdf_path=str(path.resolve()),
                 size_bytes=path.stat().st_size,
             )
-            event_id = asyncio.run(send_rag_ingest_event(path))
+            event_id = asyncio.run(send_rag_ingest_event(path, classification=classification))
             output = wait_for_run_output(event_id)
             st.session_state.latest_ingestion_output = {
                 "source_id": path.name,
@@ -50,11 +63,12 @@ def render_ingest_panel() -> None:
     if not latest_ingestion:
         return
 
-    st.subheader("Latest Ingestion Result")
-    ingestion_col1, ingestion_col2, ingestion_col3 = st.columns(3)
+    st.markdown("**Latest Ingestion Result**")
+    ingestion_col1, ingestion_col2, ingestion_col3, ingestion_col4 = st.columns(4)
     ingestion_col1.metric("Decision", latest_ingestion.get("scan_decision", "unknown"))
     ingestion_col2.metric("Chunks ingested", latest_ingestion.get("ingested", 0))
-    ingestion_col3.metric("Flags", len(latest_ingestion.get("scan_flags", [])))
+    ingestion_col3.metric("Classification", latest_ingestion.get("classification", "internal"))
+    ingestion_col4.metric("Flags", len(latest_ingestion.get("scan_flags", [])))
     st.caption(f"Source: {latest_ingestion.get('source_id', 'unknown')}")
     if latest_ingestion.get("message"):
         st.write(latest_ingestion["message"])
