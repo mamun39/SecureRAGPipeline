@@ -318,6 +318,8 @@ The local Inngest UI is usually available at `http://127.0.0.1:8288`.
 .venv\Scripts\streamlit run src/ragagent/app/streamlit_app.py
 ```
 
+This command assumes the project has already been installed in editable mode with `pip install -e .`.
+
 ## Run Tests
 
 Preferred:
