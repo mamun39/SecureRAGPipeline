@@ -1,0 +1,17 @@
+"""Centralized application defaults and configuration values."""
+
+DEFAULT_QDRANT_URL = "http://localhost:6333"
+DEFAULT_QDRANT_COLLECTION = "docs"
+
+DEFAULT_EMBED_MODEL = "text-embedding-3-large"
+DEFAULT_EMBED_DIM = 3072
+DEFAULT_CHUNK_SIZE = 1000
+DEFAULT_CHUNK_OVERLAP = 200
+
+DEFAULT_DEMO_TENANT_ID = "demo"
+DEFAULT_DEMO_USER_ROLE = "employee"
+DEFAULT_ALLOW_LOW_TRUST = False
+
+DEFAULT_LLM_MODEL = "gpt-4o-mini"
+DEFAULT_LLM_MAX_TOKENS = 1024
+DEFAULT_LLM_TEMPERATURE = 0.2

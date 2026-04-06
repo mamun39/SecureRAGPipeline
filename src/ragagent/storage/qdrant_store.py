@@ -11,13 +11,19 @@ from qdrant_client.models import (
 )
 
 from custom_types import RetrievalPolicyContext, RetrievedChunk
+from ragagent.config import DEFAULT_EMBED_DIM, DEFAULT_QDRANT_COLLECTION, DEFAULT_QDRANT_URL
 from security_retrieval_policy import build_retrieval_filter
 
 
 class QdrantStorage:
     """Convenience wrapper for one Qdrant collection."""
 
-    def __init__(self, url="http://localhost:6333", collection="docs", dim=3072):
+    def __init__(
+        self,
+        url: str = DEFAULT_QDRANT_URL,
+        collection: str = DEFAULT_QDRANT_COLLECTION,
+        dim: int = DEFAULT_EMBED_DIM,
+    ):
         self.client = QdrantClient(url=url, timeout=30)
         self.collection = collection
         if not self.client.collection_exists(self.collection):
