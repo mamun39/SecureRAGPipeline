@@ -51,3 +51,7 @@ class RAGQueryResult(pydantic.BaseModel):
     answer: str
     sources: list[str]
     num_contexts: int
+    user_role: str
+    allowed_classifications: list[str] = pydantic.Field(default_factory=list)
+    output_filter_decision: str = "allow"
+    output_filter_reasons: list[str] = pydantic.Field(default_factory=list)
