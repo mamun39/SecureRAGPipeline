@@ -1,7 +1,10 @@
 import unittest
 
-from custom_types import RetrievalPolicyContext
-from security_retrieval_policy import allowed_classifications_for_role, build_retrieval_filter
+from ragagent.models.policy import RetrievalPolicyContext
+from ragagent.security.retrieval_policy import (
+    allowed_classifications_for_role,
+    build_retrieval_filter,
+)
 
 
 class RetrievalPolicyTests(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from security_ingestion import scan_document_text
+from ragagent.security.ingestion_scanner import scan_document_text
 
 
 class IngestionScannerTests(unittest.TestCase):

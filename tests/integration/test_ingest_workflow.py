@@ -2,7 +2,7 @@ import asyncio
 import unittest
 from unittest import mock
 
-import main
+from ragagent.app import inngest_app
 from ragagent.workflows import ingest_pdf as ingest_pdf_workflow
 
 
@@ -51,7 +51,7 @@ class IngestWorkflowTests(unittest.TestCase):
             mock.patch.object(ingest_pdf_workflow, "embed_texts", side_effect=fake_embed_texts),
             mock.patch.object(ingest_pdf_workflow, "QdrantStorage", return_value=FakeStore()),
         ):
-            result = asyncio.run(main.rag_inngest_pdf._handler(ctx))
+            result = asyncio.run(inngest_app.rag_inngest_pdf._handler(ctx))
 
         self.assertEqual(result["ingested"], 0)
         self.assertEqual(result["scan_decision"], "quarantine")
