@@ -6,13 +6,10 @@ from qdrant_client.models import (
     Distance,
     PointStruct,
     Filter,
-    FieldCondition,
-    MatchValue,
 )
 
-from custom_types import RetrievalPolicyContext, RetrievedChunk
+from custom_types import RetrievedChunk
 from ragagent.config import DEFAULT_EMBED_DIM, DEFAULT_QDRANT_COLLECTION, DEFAULT_QDRANT_URL
-from security_retrieval_policy import build_retrieval_filter
 
 
 class QdrantStorage:
@@ -44,23 +41,9 @@ class QdrantStorage:
         self,
         query_vector,
         top_k: int = 5,
-        source_id: str | None = None,
-        policy_context: RetrievalPolicyContext | None = None,
+        query_filter: Filter | None = None,
     ):
         """Search for the most relevant stored chunks for a query vector."""
-        query_filter = None
-        if policy_context:
-            query_filter = build_retrieval_filter(policy_context, source_id=source_id)
-        elif source_id:
-            query_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="source",
-                        match=MatchValue(value=source_id),
-                    )
-                ]
-            )
-
         response = self.client.query_points(
             collection_name=self.collection,
             query=query_vector,

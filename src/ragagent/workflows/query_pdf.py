@@ -17,7 +17,7 @@ from ragagent.config import (
 )
 from security_audit import log_security_event
 from security_output_filter import screen_generated_answer
-from security_retrieval_policy import allowed_classifications_for_role
+from security_retrieval_policy import allowed_classifications_for_role, build_retrieval_filter
 from security_safe_context import build_safe_context
 from vector_db import QdrantStorage
 
@@ -36,6 +36,7 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
             allowed_classifications=allowed_classifications_for_role(user_role),
             allow_low_trust=DEFAULT_ALLOW_LOW_TRUST,
         )
+        query_filter = build_retrieval_filter(policy_context, source_id=source_id)
         log_security_event(
             "retrieval_policy_context_used",
             tenant_id=policy_context.tenant_id,
@@ -44,7 +45,7 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
             allow_low_trust=policy_context.allow_low_trust,
             source_id=source_id,
         )
-        found = store.search(query_vec, top_k, source_id=source_id, policy_context=policy_context)
+        found = store.search(query_vec, top_k, query_filter=query_filter)
         log_security_event(
             "retrieved_chunk_identifiers",
             source_id=source_id,
