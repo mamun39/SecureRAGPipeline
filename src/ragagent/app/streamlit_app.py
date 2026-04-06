@@ -11,6 +11,7 @@ import requests
 import streamlit as st
 
 from ragagent.security.audit import log_security_event
+from ragagent.storage.qdrant_store import QdrantStorage
 
 
 load_dotenv()
@@ -114,6 +115,14 @@ def wait_for_run_output(event_id: str, timeout_s: float = 120.0, poll_interval_s
         if time.time() - start > timeout_s:
             raise TimeoutError(f"Timed out waiting for run output (last status: {last_status})")
         time.sleep(poll_interval_s)
+
+
+def load_document_summaries() -> tuple[list[dict], str | None]:
+    """Load current document summaries from Qdrant for the explorer panel."""
+    try:
+        return QdrantStorage().list_documents(), None
+    except Exception as exc:  # pragma: no cover - UI fallback only
+        return [], str(exc)
 
 
 st.title("Upload a PDF to Ingest")
@@ -240,3 +249,31 @@ if latest_query:
                     f"reason={chunk.get('exclusion_reason', 'unknown')}"
                 )
                 st.caption(chunk.get("text_preview", ""))
+
+st.divider()
+st.title("Documents")
+
+documents, document_error = load_document_summaries()
+if document_error:
+    st.warning(f"Could not load document summaries from Qdrant: {document_error}")
+elif documents:
+    docs_col1, docs_col2 = st.columns(2)
+    docs_col1.metric("Stored documents", len(documents))
+    docs_col2.metric("Stored chunks", sum(doc["chunk_count"] for doc in documents))
+    st.dataframe(
+        documents,
+        use_container_width=True,
+        hide_index=True,
+        column_order=[
+            "source",
+            "doc_id",
+            "classification",
+            "trust_level",
+            "ingest_decision",
+            "chunk_count",
+            "created_at",
+            "ingest_scan_flags",
+        ],
+    )
+else:
+    st.caption("No stored documents found in Qdrant yet.")

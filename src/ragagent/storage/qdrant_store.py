@@ -82,3 +82,32 @@ class QdrantStorage:
                 sources.add(source)
 
         return {"contexts": contexts, "sources": list(sources), "chunks": chunks}
+
+    def list_documents(self, limit: int = 200):
+        """Return simple per-document summaries from stored payload metadata."""
+        points, _next_page = self.client.scroll(
+            collection_name=self.collection,
+            with_payload=True,
+            limit=limit,
+        )
+
+        summaries: dict[str, dict] = {}
+        for point in points:
+            payload = getattr(point, "payload", None) or {}
+            doc_id = payload.get("doc_id") or payload.get("source") or str(getattr(point, "id", "unknown"))
+            summary = summaries.setdefault(
+                doc_id,
+                {
+                    "doc_id": doc_id,
+                    "source": payload.get("source", ""),
+                    "classification": payload.get("classification", "internal"),
+                    "trust_level": payload.get("trust_level", "user_uploaded"),
+                    "ingest_decision": payload.get("ingest_decision", "allow"),
+                    "ingest_scan_flags": list(payload.get("ingest_scan_flags", [])),
+                    "created_at": payload.get("created_at", ""),
+                    "chunk_count": 0,
+                },
+            )
+            summary["chunk_count"] += 1
+
+        return sorted(summaries.values(), key=lambda item: item.get("created_at", ""), reverse=True)
