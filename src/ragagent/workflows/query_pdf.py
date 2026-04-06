@@ -7,6 +7,14 @@ from inngest.experimental import ai
 
 from custom_types import RAGSearchResult, RetrievalPolicyContext
 from data_loader import embed_texts
+from ragagent.config import (
+    DEFAULT_ALLOW_LOW_TRUST,
+    DEFAULT_DEMO_TENANT_ID,
+    DEFAULT_DEMO_USER_ROLE,
+    DEFAULT_LLM_MAX_TOKENS,
+    DEFAULT_LLM_MODEL,
+    DEFAULT_LLM_TEMPERATURE,
+)
 from security_audit import log_security_event
 from security_output_filter import screen_generated_answer
 from security_retrieval_policy import allowed_classifications_for_role
@@ -20,13 +28,13 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
     def _search(question: str, top_k: int = 5, source_id: str | None = None) -> RAGSearchResult:
         query_vec = embed_texts([question])[0]
         store = QdrantStorage()
-        user_role = ctx.event.data.get("user_role", "employee")
+        user_role = ctx.event.data.get("user_role", DEFAULT_DEMO_USER_ROLE)
         policy_context = RetrievalPolicyContext(
-            tenant_id="demo",
+            tenant_id=DEFAULT_DEMO_TENANT_ID,
             # Real auth should populate user_role and tenant context here.
             user_role=user_role,
             allowed_classifications=allowed_classifications_for_role(user_role),
-            allow_low_trust=False,
+            allow_low_trust=DEFAULT_ALLOW_LOW_TRUST,
         )
         log_security_event(
             "retrieval_policy_context_used",
@@ -72,15 +80,15 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
 
     adapter = ai.openai.Adapter(
         auth_key=os.getenv("OPENAI_API_KEY"),
-        model="gpt-4o-mini",
+        model=DEFAULT_LLM_MODEL,
     )
 
     res = await ctx.step.ai.infer(
         "llm-answer",
         adapter=adapter,
         body={
-            "max_tokens": 1024,
-            "temperature": 0.2,
+            "max_tokens": DEFAULT_LLM_MAX_TOKENS,
+            "temperature": DEFAULT_LLM_TEMPERATURE,
             "messages": [
                 {"role": "system", "content": "You answer question using only the provided context."},
                 {"role": "user", "content": user_content},

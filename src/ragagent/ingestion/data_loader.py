@@ -5,15 +5,22 @@ from llama_index.readers.file import PDFReader
 from llama_index.core.node_parser import SentenceSplitter
 from dotenv import load_dotenv
 
+from ragagent.config import (
+    DEFAULT_CHUNK_OVERLAP,
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_EMBED_DIM,
+    DEFAULT_EMBED_MODEL,
+)
+
 
 load_dotenv()
 
 client = OpenAI()
 
-EMBED_MODEL = "text-embedding-3-large"
-EMBED_DIM = 3072
+EMBED_MODEL = DEFAULT_EMBED_MODEL
+EMBED_DIM = DEFAULT_EMBED_DIM
 
-splitter = SentenceSplitter(chunk_size=1000, chunk_overlap=200)
+splitter = SentenceSplitter(chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP)
 
 
 def load_and_chunk_pdf(path: str):
