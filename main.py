@@ -1,29 +1,12 @@
-"""Main application entry point for the RAG demo.
-
-This file wires together three pieces:
-
-1. FastAPI, which runs the web server.
-2. Inngest, which lets us define event-driven background functions.
-3. The RAG helpers, which chunk PDFs, create embeddings, store vectors,
-   and answer questions from the stored content.
-
-The important beginner-friendly idea is this:
-
-- Starting the app does not immediately process a PDF or answer a question.
-- Instead, the app registers functions that wait for specific events.
-- When an event arrives, Inngest runs the matching function.
-"""
+"""Main application entry point for the RAG demo."""
 
 import logging
-import hashlib
 from fastapi import FastAPI
 import inngest
 import inngest.fast_api
 from inngest.experimental import ai
 from dotenv import load_dotenv
-import uuid
 import os
-import datetime
 from data_loader import load_and_chunk_pdf, embed_texts
 from vector_db import QdrantStorage
 from custom_types import (
@@ -39,6 +22,7 @@ from security_retrieval_policy import allowed_classifications_for_role
 from security_safe_context import build_safe_context
 from security_output_filter import screen_generated_answer
 from security_audit import log_security_event
+from ragagent.workflows.ingest_pdf import run_ingest_pdf
 
 # Load values from the local .env file before the app starts.
 # This is where API keys and other local configuration usually live.
@@ -59,99 +43,8 @@ inngest_client = inngest.Inngest(
 )
 
 async def rag_inngest_pdf(ctx: inngest.Context):
-    """Ingest a PDF into the vector database when a PDF event is received.
-
-    Expected event data:
-    - `pdf_path`: local path to the PDF file
-    - `source_id` (optional): a readable identifier for the document
-
-    High-level workflow:
-    1. Read the PDF and split it into smaller text chunks.
-    2. Convert each chunk into an embedding vector.
-    3. Store those vectors in Qdrant so they can be searched later.
-    """
-
-    def _load(ctx: inngest.Context) -> RAGChunkAndSrc:
-        """Load the PDF from disk and break it into text chunks."""
-        pdf_path = ctx.event.data["pdf_path"]
-        source_id = ctx.event.data.get("source_id", pdf_path)
-        chunks = load_and_chunk_pdf(pdf_path)
-        return RAGChunkAndSrc(chunks=chunks, source_id=source_id)
-
-    def _upsert(chunks_and_src: RAGChunkAndSrc) -> RAGUpsertResult:
-        """Embed the chunks and save them into Qdrant.
-
-        Each chunk gets:
-        - a stable ID, so the same document can be reprocessed consistently
-        - a vector embedding, which is what semantic search uses
-        - payload metadata, so we can recover the original text and source later
-        """
-        chunks = chunks_and_src.chunks
-        source_id = chunks_and_src.source_id
-        created_at = datetime.datetime.now(datetime.UTC).isoformat()
-        scan_result = scan_document_text("\n".join(chunks))
-        log_security_event(
-            "ingestion_scan_result",
-            source_id=source_id,
-            score=scan_result.score,
-            flags=scan_result.flags,
-            decision=scan_result.decision,
-            chunk_count=len(chunks),
-        )
-        if scan_result.decision == "quarantine":
-            message = (
-                f"Quarantined document '{source_id}' during ingestion due to "
-                f"scan flags: {', '.join(scan_result.flags) or 'none'}"
-            )
-            log_security_event(
-                "quarantine_decision",
-                source_id=source_id,
-                flags=scan_result.flags,
-                reason=message,
-            )
-            logging.getLogger("uvicorn").warning(message)
-            return RAGUpsertResult(
-                ingested=0,
-                scan_decision=scan_result.decision,
-                scan_flags=scan_result.flags,
-                message=message,
-            )
-
-        if scan_result.decision == "review":
-            logging.getLogger("uvicorn").info(
-                "Ingesting review-marked document '%s' with scan flags: %s",
-                source_id,
-                ", ".join(scan_result.flags) or "none",
-            )
-
-        vecs = embed_texts(chunks)
-        ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_id}:{i}")) for i in range(len(chunks))]
-        payloads = [
-            RAGChunkPayload(
-                doc_id=source_id,
-                chunk_id=ids[i],
-                source=source_id,
-                text=chunks[i],
-                ingest_scan_flags=scan_result.flags,
-                ingest_decision=scan_result.decision,
-                content_hash=hashlib.sha256(chunks[i].encode("utf-8")).hexdigest(),
-                created_at=created_at,
-            ).model_dump()
-            for i in range(len(chunks))
-        ]
-        QdrantStorage().upsert(ids, vecs, payloads)
-        return RAGUpsertResult(
-            ingested=len(chunks),
-            scan_decision=scan_result.decision,
-            scan_flags=scan_result.flags,
-            message=f"Ingested document '{source_id}' with decision '{scan_result.decision}'.",
-        )
-
-    # `ctx.step.run(...)` tells Inngest to treat each block as a named step.
-    # That makes the function easier to inspect and retry in the Inngest UI.
-    chunks_and_src = await ctx.step.run("load-and-chunk", lambda: _load(ctx), output_type=RAGChunkAndSrc)
-    ingested = await ctx.step.run("embed-and-upsert", lambda: _upsert(chunks_and_src), output_type=RAGUpsertResult)
-    return ingested.model_dump()
+    """Ingest a PDF into the vector database when a PDF event is received."""
+    return await run_ingest_pdf(ctx)
 
 @inngest_client.create_function(
     fn_id="RAG: Query PDF",
