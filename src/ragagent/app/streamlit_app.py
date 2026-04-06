@@ -10,7 +10,7 @@ import inngest
 import requests
 import streamlit as st
 
-from security_audit import log_security_event
+from ragagent.security.audit import log_security_event
 
 
 load_dotenv()

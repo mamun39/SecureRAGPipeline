@@ -8,7 +8,7 @@ from qdrant_client.models import (
     Filter,
 )
 
-from custom_types import RetrievedChunk
+from ragagent.models.payloads import RetrievedChunk
 from ragagent.config import DEFAULT_EMBED_DIM, DEFAULT_QDRANT_COLLECTION, DEFAULT_QDRANT_URL
 
 
