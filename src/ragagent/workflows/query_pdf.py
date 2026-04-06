@@ -15,7 +15,7 @@ from ..config import (
 )
 from ..ingestion.embeddings import embed_texts
 from ..models.policy import RetrievalPolicyContext
-from ..models.results import RAGSearchResult
+from ..models.results import RAGQueryResult, RAGSearchResult
 from ..security.audit import log_security_event
 from ..security.output_filter import screen_generated_answer
 from ..security.retrieval_policy import (
@@ -68,6 +68,8 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
     question = ctx.event.data["question"]
     top_k = int(ctx.event.data.get("top_k", 5))
     source_id = ctx.event.data.get("source_id")
+    user_role = ctx.event.data.get("user_role", DEFAULT_DEMO_USER_ROLE)
+    allowed_classifications = allowed_classifications_for_role(user_role)
 
     found = await ctx.step.run(
         "embed-and-search",
@@ -109,8 +111,13 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
         reasons=output_filter_result.reasons,
         answer_length=len(answer),
     )
-    return {
-        "answer": output_filter_result.filtered_text,
-        "sources": found.sources,
-        "num_contexts": len(safe_chunks),
-    }
+    result = RAGQueryResult(
+        answer=output_filter_result.filtered_text,
+        sources=found.sources,
+        num_contexts=len(safe_chunks),
+        user_role=user_role,
+        allowed_classifications=allowed_classifications,
+        output_filter_decision=output_filter_result.decision,
+        output_filter_reasons=output_filter_result.reasons,
+    )
+    return result.model_dump()

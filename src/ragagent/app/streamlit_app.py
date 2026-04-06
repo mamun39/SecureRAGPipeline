@@ -15,7 +15,9 @@ from ragagent.security.audit import log_security_event
 
 load_dotenv()
 
-st.set_page_config(page_title="RAG Ingest PDF", page_icon="ðŸ“„", layout="centered")
+st.set_page_config(page_title="RAG Ingest PDF", page_icon="PDF", layout="centered")
+st.session_state.setdefault("latest_ingestion_output", None)
+st.session_state.setdefault("latest_query_output", None)
 
 
 @st.cache_resource
@@ -41,10 +43,10 @@ def list_available_sources() -> list[str]:
     return sorted({path.name for path in uploads_dir.glob("*.pdf") if path.is_file()})
 
 
-async def send_rag_ingest_event(pdf_path: Path) -> None:
+async def send_rag_ingest_event(pdf_path: Path) -> str:
     """Send an event telling the backend to ingest the saved PDF."""
     client = get_inngest_client()
-    await client.send(
+    result = await client.send(
         inngest.Event(
             name="rag/ingest_pdf",
             data={
@@ -53,6 +55,7 @@ async def send_rag_ingest_event(pdf_path: Path) -> None:
             },
         )
     )
+    return result[0]
 
 
 async def send_rag_query_event(
@@ -60,7 +63,7 @@ async def send_rag_query_event(
     top_k: int,
     source_id: str | None = None,
     user_role: str = "employee",
-) -> None:
+) -> str:
     """Send a question event and return the created Inngest event ID."""
     client = get_inngest_client()
     event_data = {
@@ -125,10 +128,29 @@ if uploaded is not None:
             pdf_path=str(path.resolve()),
             size_bytes=path.stat().st_size,
         )
-        asyncio.run(send_rag_ingest_event(path))
-        time.sleep(0.3)
-    st.success(f"Triggered ingestion for: {path.name}")
-    st.caption("You can upload another PDF if you like.")
+        event_id = asyncio.run(send_rag_ingest_event(path))
+        output = wait_for_run_output(event_id)
+        st.session_state.latest_ingestion_output = {
+            "source_id": path.name,
+            **output,
+        }
+    st.success(f"Ingestion finished for: {path.name}")
+    st.caption("Latest ingestion result is shown below.")
+
+latest_ingestion = st.session_state.latest_ingestion_output
+if latest_ingestion:
+    st.subheader("Latest Ingestion Result")
+    ingestion_col1, ingestion_col2, ingestion_col3 = st.columns(3)
+    ingestion_col1.metric("Decision", latest_ingestion.get("scan_decision", "unknown"))
+    ingestion_col2.metric("Chunks ingested", latest_ingestion.get("ingested", 0))
+    ingestion_col3.metric("Flags", len(latest_ingestion.get("scan_flags", [])))
+    st.caption(f"Source: {latest_ingestion.get('source_id', 'unknown')}")
+    if latest_ingestion.get("message"):
+        st.write(latest_ingestion["message"])
+    if latest_ingestion.get("scan_flags"):
+        st.write("Scan flags:")
+        for flag in latest_ingestion["scan_flags"]:
+            st.write(f"- {flag}")
 
 st.divider()
 st.title("Ask a question about your PDFs")
@@ -147,13 +169,33 @@ with st.form("rag_query_form"):
         with st.spinner("Sending event and generating answer..."):
             source_filter = None if selected_source == "All sources" else selected_source
             event_id = asyncio.run(send_rag_query_event(question.strip(), int(top_k), source_filter, user_role))
-            output = wait_for_run_output(event_id)
-            answer = output.get("answer", "")
-            sources = output.get("sources", [])
+            st.session_state.latest_query_output = wait_for_run_output(event_id)
 
-        st.subheader("Answer")
-        st.write(answer or "(No answer)")
-        if sources:
-            st.caption("Sources")
-            for source in sources:
-                st.write(f"- {source}")
+latest_query = st.session_state.latest_query_output
+if latest_query:
+    answer = latest_query.get("answer", "")
+    sources = latest_query.get("sources", [])
+
+    st.subheader("Answer")
+    st.write(answer or "(No answer)")
+    if sources:
+        st.caption("Sources")
+        for source in sources:
+            st.write(f"- {source}")
+
+    st.subheader("Query Security State")
+    query_col1, query_col2, query_col3 = st.columns(3)
+    query_col1.metric("Role", latest_query.get("user_role", "unknown"))
+    query_col2.metric("Allowed classifications", len(latest_query.get("allowed_classifications", [])))
+    query_col3.metric("Safe contexts", latest_query.get("num_contexts", 0))
+    allowed_classifications = latest_query.get("allowed_classifications", [])
+    st.write(
+        "Allowed classifications: " + ", ".join(allowed_classifications)
+        if allowed_classifications
+        else "Allowed classifications: none"
+    )
+    st.write(f"Output filter decision: {latest_query.get('output_filter_decision', 'unknown')}")
+    if latest_query.get("output_filter_reasons"):
+        st.write("Output filter reasons:")
+        for reason in latest_query["output_filter_reasons"]:
+            st.write(f"- {reason}")
