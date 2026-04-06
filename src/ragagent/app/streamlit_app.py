@@ -199,3 +199,44 @@ if latest_query:
         st.write("Output filter reasons:")
         for reason in latest_query["output_filter_reasons"]:
             st.write(f"- {reason}")
+
+    st.subheader("Security Trace")
+    retrieved_chunks = latest_query.get("retrieved_chunks", [])
+    safe_chunks = latest_query.get("safe_chunks", [])
+    excluded_chunks = latest_query.get("excluded_chunks", [])
+
+    trace_col1, trace_col2, trace_col3 = st.columns(3)
+    trace_col1.metric("Retrieved", len(retrieved_chunks))
+    trace_col2.metric("Kept", len(safe_chunks))
+    trace_col3.metric("Excluded", len(excluded_chunks))
+
+    if retrieved_chunks:
+        with st.expander("Retrieved chunks", expanded=False):
+            for idx, chunk in enumerate(retrieved_chunks, start=1):
+                st.write(
+                    f"{idx}. source={chunk.get('source', '')} "
+                    f"classification={chunk.get('classification', '')} "
+                    f"trust={chunk.get('trust_level', '')}"
+                )
+                st.caption(chunk.get("text_preview", ""))
+
+    if safe_chunks:
+        with st.expander("Safe chunks kept", expanded=False):
+            for idx, chunk in enumerate(safe_chunks, start=1):
+                st.write(
+                    f"{idx}. source={chunk.get('source', '')} "
+                    f"classification={chunk.get('classification', '')} "
+                    f"trust={chunk.get('trust_level', '')}"
+                )
+                st.caption(chunk.get("text_preview", ""))
+
+    if excluded_chunks:
+        with st.expander("Excluded chunks", expanded=False):
+            for idx, chunk in enumerate(excluded_chunks, start=1):
+                st.write(
+                    f"{idx}. source={chunk.get('source', '')} "
+                    f"classification={chunk.get('classification', '')} "
+                    f"trust={chunk.get('trust_level', '')} "
+                    f"reason={chunk.get('exclusion_reason', 'unknown')}"
+                )
+                st.caption(chunk.get("text_preview", ""))

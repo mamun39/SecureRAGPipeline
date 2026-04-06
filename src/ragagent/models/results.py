@@ -45,6 +45,18 @@ class RAGSearchResult(pydantic.BaseModel):
     chunks: list[RetrievedChunk] = pydantic.Field(default_factory=list)
 
 
+class ChunkTraceEntry(pydantic.BaseModel):
+    """Trace-friendly representation of a retrieved chunk and its handling."""
+
+    source: str = ""
+    classification: str = "internal"
+    trust_level: str = "user_uploaded"
+    ingest_decision: str = "allow"
+    ingest_scan_flags: list[str] = pydantic.Field(default_factory=list)
+    text_preview: str = ""
+    exclusion_reason: str | None = None
+
+
 class RAGQueryResult(pydantic.BaseModel):
     """Represents the final RAG answer returned to the caller."""
 
@@ -55,3 +67,6 @@ class RAGQueryResult(pydantic.BaseModel):
     allowed_classifications: list[str] = pydantic.Field(default_factory=list)
     output_filter_decision: str = "allow"
     output_filter_reasons: list[str] = pydantic.Field(default_factory=list)
+    retrieved_chunks: list[ChunkTraceEntry] = pydantic.Field(default_factory=list)
+    safe_chunks: list[ChunkTraceEntry] = pydantic.Field(default_factory=list)
+    excluded_chunks: list[ChunkTraceEntry] = pydantic.Field(default_factory=list)

@@ -15,7 +15,7 @@ from ..config import (
 )
 from ..ingestion.embeddings import embed_texts
 from ..models.policy import RetrievalPolicyContext
-from ..models.results import RAGQueryResult, RAGSearchResult
+from ..models.results import ChunkTraceEntry, RAGQueryResult, RAGSearchResult
 from ..security.audit import log_security_event
 from ..security.output_filter import screen_generated_answer
 from ..security.retrieval_policy import (
@@ -77,7 +77,18 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
         output_type=RAGSearchResult,
     )
 
-    context_block, safe_chunks = build_safe_context(found.chunks)
+    context_block, safe_chunks, safe_trace, excluded_trace = build_safe_context(found.chunks)
+    retrieved_trace = [
+        ChunkTraceEntry(
+            source=chunk.source,
+            classification=chunk.classification,
+            trust_level=chunk.trust_level,
+            ingest_decision=chunk.ingest_decision,
+            ingest_scan_flags=chunk.ingest_scan_flags,
+            text_preview=chunk.text[:160],
+        )
+        for chunk in found.chunks
+    ]
     user_content = (
         "Use the following context to answer the question. \n\n"
         f"Context:\n{context_block}\n\n"
@@ -119,5 +130,8 @@ async def run_query_pdf(ctx: inngest.Context) -> dict:
         allowed_classifications=allowed_classifications,
         output_filter_decision=output_filter_result.decision,
         output_filter_reasons=output_filter_result.reasons,
+        retrieved_chunks=retrieved_trace,
+        safe_chunks=safe_trace,
+        excluded_chunks=excluded_trace,
     )
     return result.model_dump()
