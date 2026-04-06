@@ -1,4 +1,7 @@
-from bootstrap_src import ensure_src_path
+from pathlib import Path
+import sys
 
 
-ensure_src_path(__file__, levels_up=1)
+_SRC_DIR = Path(__file__).resolve().parents[1] / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
