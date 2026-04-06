@@ -2,48 +2,158 @@
 
 A small security-aware Retrieval-Augmented Generation (RAG) demo built with FastAPI, Inngest, Qdrant, OpenAI, and Streamlit.
 
-The project supports two workflows:
+It demonstrates layered app-level controls around document ingestion, retrieval, prompt context assembly, output screening, and audit logging. It is a demo of defense-in-depth patterns, not a hardened security boundary.
 
-1. Ingest a PDF by splitting it into chunks, embedding the chunks, and storing them in Qdrant.
-2. Ask a question and answer it using the most relevant stored chunks.
+## What This Demonstrates
 
-The current version adds app-layer security controls around ingestion, retrieval, prompt assembly, output handling, and audit logging. These controls are layered mitigations for a demo environment. They reduce obvious failure modes, but they do not guarantee secure handling of hostile content.
+- PDF ingestion into a vector store
+- ingestion-time suspicious-content scanning
+- quarantine enforcement before embedding/upsert
+- retrieval-time metadata filtering based on demo role policy
+- safe prompt context construction from retrieved chunks
+- post-generation output screening
+- structured security event logging
 
-## Credit
+## Quickstart
 
-This project was inspired by and gives credit to [ProductionGradeRAGPythonApp](https://github.com/techwithtim/ProductionGradeRAGPythonApp).
+Requirements:
 
-## How It Works
+- Python 3.14+
+- Qdrant running locally on `http://localhost:6333`
+- OpenAI API key
+- Inngest dev server for local development
 
-The application is split into a few simple pieces:
+Install:
 
-- [src/ragagent/app/inngest_app.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/app/inngest_app.py): FastAPI app and Inngest functions.
-- [src/ragagent/app/streamlit_app.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/app/streamlit_app.py): UI for uploading PDFs and asking questions.
-- [src/ragagent/workflows/ingest_pdf.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/workflows/ingest_pdf.py): ingestion orchestration.
-- [src/ragagent/workflows/query_pdf.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/workflows/query_pdf.py): retrieval, prompt assembly, and answer flow.
-- [src/ragagent/ingestion/loader.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/ingestion/loader.py) and [src/ragagent/ingestion/embeddings.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/ingestion/embeddings.py): PDF loading, chunking, and embeddings.
-- [src/ragagent/storage/qdrant_store.py](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/storage/qdrant_store.py): Qdrant wrapper for storing and searching vectors.
-- [src/ragagent/security/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/security): ingestion scanning, retrieval policy, safe context handling, output filtering, and audit logging.
-- [src/ragagent/models/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/models): payload, policy, and result models.
+```powershell
+py -m venv .venv
+.venv\Scripts\activate
+.venv\Scripts\python.exe -m pip install -e .
+```
+
+Create a `.env` file in the project root:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+INNGEST_API_BASE=http://127.0.0.1:8288/v1
+```
+
+Run the app:
+
+1. Start Qdrant locally.
+2. Start the FastAPI/Inngest app:
+
+```powershell
+.venv\Scripts\uvicorn ragagent.app.inngest_app:app --reload
+```
+
+3. Start the Inngest dev server:
+
+```powershell
+npx --ignore-scripts=false inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest --no-discovery
+```
+
+4. Start Streamlit:
+
+```powershell
+.venv\Scripts\streamlit run src/ragagent/app/streamlit_app.py
+```
+
+## Testing
+
+Preferred:
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests -t . -p "test_*.py"
+```
+
+Compatibility entrypoint:
+
+```powershell
+.venv\Scripts\python.exe -m unittest tests.test_security_pipeline
+```
+
+## Project Structure
+
+- [src/ragagent/app/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/app): FastAPI/Inngest and Streamlit entrypoints
+- [src/ragagent/workflows/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/workflows): ingest and query orchestration
+- [src/ragagent/ingestion/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/ingestion): PDF loading, chunking, and embeddings
+- [src/ragagent/security/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/security): scanning, policy, safe context handling, output filtering, and audit logging
+- [src/ragagent/storage/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/storage): Qdrant access
+- [src/ragagent/models/](/C:/Users/MRAka/PycharmProjects/RAGAgent/src/ragagent/models): payload, policy, and result models
+- [tests/](/C:/Users/MRAka/PycharmProjects/RAGAgent/tests): unit and integration coverage for the security-aware flow
+
+## Security Pipeline
+
+| Stage | Current Control | Current Behavior | Current Limitation |
+|---|---|---|---|
+| Upload | Local file save + audit log | Uploaded PDFs are saved under `uploads/` and logged | No malware scanning or parser isolation |
+| Ingestion scan | Phrase-based suspicious-content scan | Returns `score`, `flags`, and `allow` / `review` / `quarantine` | Can miss malicious content or over-flag benign text |
+| Quarantine | Pre-embedding enforcement | `quarantine` documents are not embedded or stored in Qdrant | No separate review UI or durable quarantine store |
+| Metadata | Security-aware chunk payloads | Chunks carry doc/chunk IDs, tenant, owner, classification, trust, decision, hash, timestamp | Most values still use demo defaults |
+| Retrieval policy | App-layer metadata filter | Filters by tenant, classification allowlist, non-quarantine status, and optional source | No real authentication or server-trusted identity |
+| Safe context | Context filtering + untrusted-text instruction | Quarantined and flagged/review chunks are excluded before prompt assembly | Heuristic and conservative rather than nuanced |
+| Output filter | Simple answer screening | Blocks obvious secret-like output and restricted-looking dumps; redacts some simple sensitive patterns | Heuristic only; not robust DLP |
+| Audit logging | Structured local logs | Logs upload, scan, quarantine, retrieval policy, retrieval summary, and output filter decisions | Local logs only; not durable or tamper-evident |
+
+## Known Demo Defaults
+
+- uploaded chunks default to `tenant_id="demo"`
+- uploaded chunks default to `owner_id="local_user"`
+- uploaded chunks default to `classification="internal"`
+- uploaded chunks default to `trust_level="user_uploaded"`
+- `review` documents are still ingested
+- `quarantine` documents are blocked before embeddings and Qdrant upsert
+
+Role mapping used at retrieval time:
+
+- `public` -> `public`
+- `employee` -> `public`, `internal`
+- `manager` -> `public`, `internal`, `confidential`
+- `admin` -> `public`, `internal`, `confidential`, `restricted`
+
+## Using The App
+
+In the Streamlit UI:
+
+1. Upload a PDF.
+2. Wait for ingestion to complete.
+3. Ask a question about the PDF content.
+4. Review the generated answer and returned sources.
+
+You can also test the workflows by sending events directly through the Inngest dev UI or API.
+
+Relevant event names:
+
+- `rag/ingest_pdf`
+- `rag/query_pdf_ai`
+
+Example ingest event payload:
+
+```json
+{
+  "pdf_path": "C:\\path\\to\\file.pdf",
+  "source_id": "file.pdf"
+}
+```
+
+Example query event payload:
+
+```json
+{
+  "question": "What is this PDF about?",
+  "top_k": 5,
+  "user_role": "employee"
+}
+```
 
 ## Architecture
 
 The backend is event-driven:
 
-- FastAPI exposes the Inngest endpoint.
-- Inngest listens for named events.
-- When an event arrives, Inngest runs the matching function.
-
-## Threat Model Summary
-
-This repo now assumes uploaded documents and retrieved text may be adversarial. The current controls are aimed at a few concrete classes of risk:
-
-- prompt-injection-style instructions embedded in uploaded or retrieved documents
-- accidental retrieval of content outside the intended demo role or classification scope
-- reuse of quarantined content that should not participate in generation
-- model outputs that may contain obvious secret-like strings or simple sensitive patterns
-
-This is not a full security model. The project does not implement strong identity, cryptographic document provenance, sandboxed document rendering, malware analysis, or formal data loss prevention.
+- FastAPI exposes the Inngest endpoint
+- Inngest listens for named events
+- matching workflows perform ingestion or query handling
 
 ### Architecture Overview
 
@@ -143,98 +253,16 @@ sequenceDiagram
     S-->>U: Display answer + sources
 ```
 
-The ingest flow is:
+## Troubleshooting
 
-1. Receive a PDF event.
-2. Read the PDF.
-3. Split text into chunks.
-4. Run a basic ingestion scan over extracted text.
-5. If the scan decision is `quarantine`, stop before embeddings and do not write to Qdrant.
-6. Otherwise, create embeddings for each chunk.
-7. Store vectors plus security metadata in Qdrant.
-
-The query flow is:
-
-1. Receive a question event.
-2. Embed the question.
-3. Build a retrieval policy context from the demo role.
-4. Search Qdrant using metadata-aware filters.
-5. Build a safe context block from retrieved chunks.
-6. Send the filtered context to the LLM.
-7. Run a simple output filter on the generated answer.
-8. Return the screened answer and sources.
-
-## Security Features
-
-### Ingestion Scanning
-
-Uploaded document text is scanned for a small set of suspicious phrases such as `ignore previous instructions`, `reveal system prompt`, `exfiltrate`, `system prompt`, and `execute`.
-
-- the scan produces a `score`, `flags`, and a decision of `allow`, `review`, or `quarantine`
-- results are persisted into chunk metadata for later use
-- this is intentionally simple phrase matching, not advanced malware or prompt-injection detection
-
-### Quarantine Behavior
-
-If ingestion scanning returns `quarantine`:
-
-- the document is not embedded
-- no chunk payloads are written to Qdrant
-- the decision is returned in the ingestion result and logged
-
-Documents marked `review` are still ingested in the current implementation, but their flags and decision are stored in metadata.
-
-### Retrieval-Time Authorization
-
-Retrieval uses app-layer Qdrant payload filters based on demo policy context.
-
-- results are filtered by `tenant_id`
-- `classification` is constrained by the current demo role
-- chunks with `ingest_decision="quarantine"` are excluded
-- optional source filtering still applies
-
-The demo role mapping is:
-
-- `public` -> `public`
-- `employee` -> `public`, `internal`
-- `manager` -> `public`, `internal`, `confidential`
-- `admin` -> `public`, `internal`, `confidential`, `restricted`
-
-This is not authentication. The current role is a demo input, not a trusted identity claim.
-
-### Safe Context Handling
-
-Retrieved chunks are not sent directly to the model unchanged.
-
-- quarantined chunks are excluded defensively before prompt assembly
-- review-flagged or otherwise flagged chunks are currently excluded from prompt context
-- each included chunk is wrapped with metadata labels such as `source`, `classification`, and `trust`
-- the prompt prepends a short instruction telling the model to treat retrieved text as untrusted evidence, not executable instructions
-
-This is a prompt-level mitigation. It helps, but it is not a guarantee against prompt injection.
-
-### Output Filtering
-
-Generated answers pass through a small post-generation filter.
-
-- obvious API-key-like strings can cause the answer to be blocked
-- simple email-like and phone-like patterns can be redacted
-- long outputs that look like restricted-content dumps can be blocked
-
-The current output filter is intentionally narrow and heuristic-based.
-
-### Audit Logging
-
-The app emits simple structured JSON-style security logs for:
-
-- upload received
-- ingestion scan result
-- quarantine decision
-- retrieval policy context used
-- retrieved chunk metadata summary
-- output filter decision
-
-These logs are local application logs. They are not forwarded to an external SIEM or durable audit store.
+- `ImportError: attempted relative import with no known parent package`
+  Ensure the project was installed with `pip install -e .` before using package-native commands.
+- Streamlit starts but returns no answers
+  Make sure the FastAPI app, Inngest dev server, and Qdrant are all running.
+- `public` role returns no context
+  New uploads default to `classification="internal"`, so `public` cannot retrieve them.
+- Ingestion appears to succeed but document is not searchable
+  Check whether the document was marked `quarantine` in logs.
 
 ## Limitations
 
@@ -249,129 +277,19 @@ The current system should be treated as a security-aware demo, not a hardened se
 - audit logs are local process logs and are not tamper-evident
 - existing security layers reduce obvious risks, but none of them alone or together should be treated as a guarantee of safety
 
-## Requirements
+## Future Work
 
-- Python 3.14+
-- Qdrant running locally on `http://localhost:6333`
-- OpenAI API key
-- Inngest dev server for local development
+- replace demo role selection with real authentication and trusted policy context
+- strengthen ingestion scanning and parser hardening
+- support trusted document metadata rather than defaults
+- improve output screening and evaluation coverage
+- move audit logs to durable storage
 
-## Environment Variables
+## Credit
 
-Create a `.env` file in the project root with at least:
-
-```env
-OPENAI_API_KEY=your_openai_api_key
-```
-
-Optional:
-
-```env
-INNGEST_API_BASE=http://127.0.0.1:8288/v1
-```
-
-## Install Dependencies
-
-If you are using `uv`:
-
-```powershell
-uv sync
-```
-
-If you are using a regular virtual environment:
-
-```powershell
-py -m venv .venv
-.venv\Scripts\activate
-pip install -e .
-```
-
-Editable install is the expected local development setup for the `src/` layout.
-
-## Run The Project
-
-You typically use three terminals.
-
-### 1. Start Qdrant
-
-Run Qdrant locally however you prefer, for example with Docker.
-
-### 2. Start the FastAPI app
-
-```powershell
-.venv\Scripts\uvicorn ragagent.app.inngest_app:app --reload
-```
-
-This starts the backend server, usually at `http://127.0.0.1:8000`.
-
-### 3. Start the Inngest dev server
-
-```powershell
-npx --ignore-scripts=false inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest --no-discovery
-```
-
-The local Inngest UI is usually available at `http://127.0.0.1:8288`.
-
-### 4. Start the Streamlit UI
-
-```powershell
-.venv\Scripts\streamlit run src/ragagent/app/streamlit_app.py
-```
-
-This command assumes the project has already been installed in editable mode with `pip install -e .`.
-
-## Run Tests
-
-Preferred:
-
-```powershell
-.venv\Scripts\python.exe -m unittest discover -s tests -t . -p "test_*.py"
-```
-
-Compatibility entrypoint:
-
-```powershell
-.venv\Scripts\python.exe -m unittest tests.test_security_pipeline
-```
-
-## Using The App
-
-In the Streamlit UI:
-
-1. Upload a PDF.
-2. Wait for ingestion to complete.
-3. Ask a question about the PDF content.
-4. Review the generated answer and returned sources.
-
-## Manual Event Testing
-
-You can also test the system by sending events directly through the Inngest dev UI or API.
-
-Relevant event names in the backend:
-
-- `rag/ingest_pdf`
-- `rag/query_pdf_ai`
-
-Example ingest event payload:
-
-```json
-{
-  "pdf_path": "C:\\path\\to\\file.pdf",
-  "source_id": "file.pdf"
-}
-```
-
-Example query event payload:
-
-```json
-{
-  "question": "What is this PDF about?",
-  "top_k": 5,
-  "user_role": "employee"
-}
-```
+This project was inspired by and gives credit to [ProductionGradeRAGPythonApp](https://github.com/techwithtim/ProductionGradeRAGPythonApp).
 
 ## Notes
 
-- `.env`, `.venv`, local caches, and `qdrant_storage/` are ignored by Git through [.gitignore](/C:/Users/MRAka/PycharmProjects/RAGAgent/.gitignore).
-- If a secret was committed before `.gitignore` was added, it must be removed from Git history separately.
+- `.env`, `.venv`, local caches, and `qdrant_storage/` are ignored by Git through [.gitignore](/C:/Users/MRAka/PycharmProjects/RAGAgent/.gitignore)
+- if a secret was committed before `.gitignore` was added, it must be removed from Git history separately
