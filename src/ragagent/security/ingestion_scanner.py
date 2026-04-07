@@ -1,10 +1,6 @@
-"""Basic ingestion-time scanning for suspicious document content.
+"""Basic ingestion-time scanning for suspicious document content."""
 
-This module intentionally keeps detection simple. It gives the ingestion flow
-just enough structure to tag uploaded content for later policy enforcement.
-"""
-
-from custom_types import IngestScanResult
+from ..models.results import IngestScanResult
 
 
 SUSPICIOUS_PHRASES = [
