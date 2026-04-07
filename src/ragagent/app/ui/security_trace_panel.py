@@ -5,7 +5,7 @@ import streamlit as st
 
 def render_security_trace_panel(latest_query: dict) -> None:
     """Render the retrieval trace for the latest query result."""
-    st.markdown("**Security Trace**")
+    st.markdown("**Retrieval Trace**")
     st.caption("Trace what was retrieved, what was kept for context, and what was excluded.")
     retrieved_chunks = latest_query.get("retrieved_chunks", [])
     safe_chunks = latest_query.get("safe_chunks", [])

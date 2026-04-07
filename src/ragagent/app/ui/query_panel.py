@@ -78,7 +78,7 @@ def render_query_panel() -> None:
         for source in sources:
             st.write(f"- {source}")
 
-    st.markdown("**Query Security State**")
+    st.markdown("**Answer Security Summary**")
     query_col1, query_col2, query_col3 = st.columns(3)
     query_col1.metric("Role", latest_query.get("user_role", "unknown"))
     query_col2.metric("Allowed classifications", len(latest_query.get("allowed_classifications", [])))
@@ -95,4 +95,5 @@ def render_query_panel() -> None:
         for reason in latest_query["output_filter_reasons"]:
             st.write(f"- {reason}")
 
-    render_security_trace_panel(latest_query)
+    with st.expander("Why this answer happened", expanded=False):
+        render_security_trace_panel(latest_query)
