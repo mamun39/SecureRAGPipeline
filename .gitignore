@@ -19,3 +19,5 @@ site/
 *.egg-info/
 .eggs/
 qdrant_storage/
+uploads/
+audit_events.jsonl
