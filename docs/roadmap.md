@@ -13,14 +13,16 @@ Exit criteria:
 
 - retrieval policy uses backend-provided identity context only
 
-### Make document metadata explicit at ingest time
+### Replace demo-selected metadata with trusted ingest metadata
 
-- require or derive `classification`, `owner_id`, `tenant_id`, and `trust_level`
-- validate metadata before storage
+- keep the current demo upload-time metadata controls for `classification` and `trust_level`
+- replace those demo controls with trusted or validated server-side values where appropriate
+- require or derive `owner_id` and `tenant_id`
+- validate metadata before storage and before policy use
 
 Exit criteria:
 
-- new documents are stored with meaningful policy metadata instead of defaults
+- new documents are stored with trusted policy metadata instead of UI-selected/demo defaults
 
 ### Improve ingestion screening
 
@@ -36,6 +38,7 @@ Exit criteria:
 
 - move beyond all-or-nothing dropping of review/flagged content
 - support limited redaction or more nuanced chunk selection
+- make source reporting align exactly with the chunks actually sent to the model
 
 Exit criteria:
 
@@ -75,6 +78,7 @@ Exit criteria:
 - standardize event schemas
 - add correlation IDs
 - move logs to durable storage
+- support clearer event navigation for investigations
 
 Exit criteria:
 

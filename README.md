@@ -168,7 +168,7 @@ Detailed runtime diagrams live in [Runtime Diagrams](docs/runtime-diagrams.md). 
 The current system should be treated as a security-aware demo, not a hardened secure RAG platform.
 
 - role selection in the UI is demo-only and not backed by real authentication
-- tenant, owner, classification, and trust metadata use simple defaults unless explicitly changed in code
+- tenant and owner metadata still use demo defaults, and classification/trust values are user-selected rather than trusted
 - ingestion scanning is phrase-based and can miss malicious content or over-flag benign content
 - safe context handling currently drops review-flagged chunks rather than applying nuanced risk scoring
 - output filtering is heuristic and can miss secrets or over-block benign content
@@ -178,7 +178,7 @@ The current system should be treated as a security-aware demo, not a hardened se
 
 ## Future Work
 
-Future work includes real authentication, stronger ingestion controls, trusted metadata, more robust output screening, and broader evaluation coverage. The fuller phased plan lives in [Roadmap](docs/roadmap.md).
+Future work includes real authentication, trusted server-side metadata, stronger ingestion controls, more nuanced context/output handling, durable audit storage, and broader evaluation coverage. The fuller phased plan lives in [Roadmap](docs/roadmap.md).
 
 ## Credit
 
