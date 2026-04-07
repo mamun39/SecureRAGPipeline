@@ -19,8 +19,8 @@ def _apply_demo_scenario(question: str, role: str, top_k: int = 5, source: str =
 
 def render_query_panel() -> None:
     """Render the query form and latest query results."""
-    st.subheader("Query")
-    st.caption("Use the demo controls to compare how role and output handling affect the same corpus.")
+    st.subheader("2. Query as a Role")
+    st.caption("Ask the same question under different roles to compare retrieval and output behavior.")
 
     st.session_state.setdefault("query_question", "")
     st.session_state.setdefault("query_top_k", 5)
@@ -71,14 +71,22 @@ def render_query_panel() -> None:
     answer = latest_query.get("answer", "")
     sources = latest_query.get("sources", [])
 
-    st.markdown("**Answer**")
+    st.markdown("**Generated Answer**")
     st.write(answer or "(No answer)")
     if sources:
         st.caption("Sources")
         for source in sources:
             st.write(f"- {source}")
 
-    st.markdown("**Answer Security Summary**")
+    st.markdown("**3. Answer Security Summary**")
+    retrieved_count = len(latest_query.get("retrieved_chunks", []))
+    safe_count = len(latest_query.get("safe_chunks", []))
+    excluded_count = len(latest_query.get("excluded_chunks", []))
+    st.write(
+        f"Role `{latest_query.get('user_role', 'unknown')}` retrieved `{retrieved_count}` chunks, "
+        f"used `{safe_count}` in the prompt, excluded `{excluded_count}`, and returned "
+        f"`{latest_query.get('output_filter_decision', 'unknown')}` output."
+    )
     query_col1, query_col2, query_col3 = st.columns(3)
     query_col1.metric("Role", latest_query.get("user_role", "unknown"))
     query_col2.metric("Allowed classifications", len(latest_query.get("allowed_classifications", [])))

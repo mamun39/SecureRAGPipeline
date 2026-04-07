@@ -20,8 +20,8 @@ def save_uploaded_pdf(file) -> Path:
 
 def render_ingest_panel() -> None:
     """Render the upload flow and latest ingestion result."""
-    st.subheader("Ingest")
-    st.caption("Upload a PDF and inspect the latest ingestion security outcome.")
+    st.subheader("1. Upload and Classify")
+    st.caption("Choose a document, assign demo metadata, and inspect the ingestion outcome.")
     with st.expander("Demo hints", expanded=False):
         st.write("To demonstrate ingestion security behavior:")
         st.write("- Upload a normal PDF to see an `allow` decision.")
@@ -71,7 +71,12 @@ def render_ingest_panel() -> None:
     if not latest_ingestion:
         return
 
-    st.markdown("**Latest Ingestion Result**")
+    st.markdown("**Ingestion Outcome**")
+    st.write(
+        f"Stored as `{latest_ingestion.get('classification', 'internal')}` / "
+        f"`{latest_ingestion.get('trust_level', 'user_uploaded')}` with "
+        f"`{latest_ingestion.get('scan_decision', 'unknown')}` decision."
+    )
     ingestion_col1, ingestion_col2, ingestion_col3, ingestion_col4, ingestion_col5 = st.columns(5)
     ingestion_col1.metric("Decision", latest_ingestion.get("scan_decision", "unknown"))
     ingestion_col2.metric("Chunks ingested", latest_ingestion.get("ingested", 0))
