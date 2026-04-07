@@ -2,12 +2,24 @@
 
 A security-aware Retrieval-Augmented Generation (RAG) built with FastAPI, Inngest, Qdrant, OpenAI, and Streamlit.
 
-It demonstrates layered app-level controls around document ingestion, retrieval, prompt context assembly, output screening, and audit logging. It is a demo of defense-in-depth patterns, not a hardened security boundary.
+It demonstrates layered app-level controls around ingestion, retrieval, prompt context assembly, output screening, and audit logging. It is an interactive security demo, not a hardened production boundary.
 
 Further documentation:
 
 - [Security Architecture](docs/security-architecture.md)
+- [Runtime Diagrams](docs/runtime-diagrams.md)
 - [Roadmap](docs/roadmap.md)
+
+## Highlights
+
+- ingestion scanning with `allow`, `review`, and `quarantine` decisions
+- retrieval-time policy filtering by role and document metadata
+- safe context construction that treats retrieved text as untrusted evidence
+- output screening for obvious secret-like or sensitive patterns
+- structured audit logging across the pipeline
+- Streamlit UI for inspecting results, traces, documents, and audit events
+
+The primary security-control figure lives in [Security Architecture](docs/security-architecture.md).
 
 ## What This Demonstrates
 
@@ -72,21 +84,15 @@ Preferred:
 .venv\Scripts\python.exe -m unittest discover -s tests -t . -p "test_*.py"
 ```
 
-Compatibility entrypoint:
-
-```powershell
-.venv\Scripts\python.exe -m unittest tests.test_security_pipeline
-```
-
 ## Project Structure
 
-- [src/ragagent/app/](src/ragagent/app): FastAPI/Inngest and Streamlit entrypoints
+- [src/ragagent/app/](src/ragagent/app): entrypoints and UI
 - [src/ragagent/workflows/](src/ragagent/workflows): ingest and query orchestration
-- [src/ragagent/ingestion/](src/ragagent/ingestion): PDF loading, chunking, and embeddings
-- [src/ragagent/security/](src/ragagent/security): scanning, policy, safe context handling, output filtering, and audit logging
+- [src/ragagent/ingestion/](src/ragagent/ingestion): PDF loading and embeddings
+- [src/ragagent/security/](src/ragagent/security): scanning, policy, filtering, and audit
 - [src/ragagent/storage/](src/ragagent/storage): Qdrant access
-- [src/ragagent/models/](src/ragagent/models): payload, policy, and result models
-- [tests/](tests): unit and integration coverage for the security-aware flow
+- [src/ragagent/models/](src/ragagent/models): payload and result models
+- [tests/](tests): unit and integration coverage
 
 ## Security Pipeline
 
@@ -103,214 +109,40 @@ Compatibility entrypoint:
 
 For more detail on control placement and current behavior, see [Security Architecture](docs/security-architecture.md).
 
-## Known Demo Defaults
+## Demo Defaults
 
-- uploaded chunks default to `tenant_id="demo"`
-- uploaded chunks default to `owner_id="local_user"`
-- uploaded chunks default to `classification="internal"`
-- uploaded chunks default to `trust_level="user_uploaded"`
-- `review` documents are still ingested
-- `quarantine` documents are blocked before embeddings and Qdrant upsert
+| Field | Default |
+|---|---|
+| `tenant_id` | `demo` |
+| `owner_id` | `local_user` |
+| `classification` | `internal` |
+| `trust_level` | `user_uploaded` |
+| `review` handling | still ingested |
+| `quarantine` handling | blocked before embedding/upsert |
 
-Role mapping used at retrieval time:
+## Role Access Mapping
 
-- `public` -> `public`
-- `employee` -> `public`, `internal`
-- `manager` -> `public`, `internal`, `confidential`
-- `admin` -> `public`, `internal`, `confidential`, `restricted`
+| Role | Allowed classifications |
+|---|---|
+| `public` | `public` |
+| `employee` | `public`, `internal` |
+| `manager` | `public`, `internal`, `confidential` |
+| `admin` | `public`, `internal`, `confidential`, `restricted` |
 
-## Using The App
+## Try It
 
-In the Streamlit UI:
-
-1. Upload a PDF.
+1. Upload a PDF and assign `classification` and `trust_level`.
 2. Wait for ingestion to complete.
-3. Ask a question about the PDF content.
-4. Review the generated answer and returned sources.
+3. Ask the same question under different roles.
+4. Inspect the answer summary, retrieval trace, document metadata, and audit events.
 
-You can also test the workflows by sending events directly through the Inngest dev UI or API.
+Detailed runtime diagrams live in [Runtime Diagrams](docs/runtime-diagrams.md). Lower-level control placement and security behavior are described in [Security Architecture](docs/security-architecture.md).
 
-Relevant event names:
+## Why This Project
 
-- `rag/ingest_pdf`
-- `rag/query_pdf_ai`
-
-Example ingest event payload:
-
-```json
-{
-  "pdf_path": "C:\\path\\to\\file.pdf",
-  "source_id": "file.pdf"
-}
-```
-
-Example query event payload:
-
-```json
-{
-  "question": "What is this PDF about?",
-  "top_k": 5,
-  "user_role": "employee"
-}
-```
-
-## Architecture
-
-The backend is event-driven:
-
-- FastAPI exposes the Inngest endpoint
-- Inngest listens for named events
-- matching workflows perform ingestion or query handling
-
-### Layered Security Controls in the RAG Pipeline
-
-```mermaid
-flowchart LR
-    U[Upload PDF]
-    S[Ingestion Scanner]
-    D{Scan Decision}
-    Q[Quarantine]
-    C[Chunk and Embed]
-    M[Store in Qdrant with metadata<br/>doc_id, source, classification, trust_level, ingest_decision]
-    R[Query with demo role/policy context]
-    F[Retrieval Policy Filter<br/>tenant, classification, non-quarantine, trust]
-    B[Safe Context Builder<br/>treat retrieved text as untrusted evidence]
-    L[LLM Generation]
-    O[Output Filter]
-    X{Output Decision}
-    A[Return Answer]
-    RB[Redact or Block]
-    G[(Structured Audit Logging)]
-
-    U --> S
-    S --> D
-    D -->|allow / review| C
-    D -->|quarantine| Q
-    C --> M
-    R --> F
-    M --> F
-    F --> B
-    B --> L
-    L --> O
-    O --> X
-    X -->|allow| A
-    X -->|redact / block| RB
-
-    S -.-> G
-    D -.-> G
-    F -.-> G
-    O -.-> G
-
-    classDef normal fill:#e8f1fb,stroke:#2b6cb0,color:#1a365d;
-    classDef decision fill:#fff4d6,stroke:#b7791f,color:#744210;
-    classDef danger fill:#fde8e8,stroke:#c53030,color:#742a2a;
-    classDef storage fill:#edf2f7,stroke:#4a5568,color:#1a202c;
-    classDef audit fill:#f0fff4,stroke:#2f855a,color:#22543d;
-
-    class U,S,C,R,F,B,L,O,A normal;
-    class D,X decision;
-    class Q,RB danger;
-    class M storage;
-    class G audit;
-```
-
-### Architecture Overview
-
-```mermaid
-flowchart LR
-    U[User]
-    S[Streamlit UI<br/>src/ragagent/app/streamlit_app.py]
-    UP[(uploads/*.pdf)]
-    I[Inngest Dev Server<br/>:8288]
-    A[FastAPI + Inngest Functions<br/>src/ragagent/app/inngest_app.py :8000]
-    D[ragagent.ingestion<br/>PDF load/chunk + embeddings]
-    Q[ragagent.storage.qdrant_store<br/>QdrantStorage]
-    V[(Qdrant<br/>:6333)]
-    O[(OpenAI API)]
-
-    U -->|Upload PDF / Ask Question| S
-    S -->|Save upload| UP
-    S -->|Send rag/ingest_pdf<br/>or rag/query_pdf_ai| I
-    I -->|Deliver event| A
-
-    A -->|Ingest flow| D
-    A -->|Query embedding| D
-    D -->|Embeddings| O
-    A -->|Upsert/search vectors| Q
-    Q --> V
-
-    A -->|Query flow: LLM answer with retrieved context| O
-    A -->|Run output| I
-    S -->|Poll run status| I
-    I -->|Return run output| S
-    S -->|Answer + sources| U
-```
-
-### Ingestion Sequence
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant S as Streamlit UI
-    participant I as Inngest Dev Server
-    participant A as FastAPI + Inngest Function
-    participant D as ragagent.ingestion
-    participant O as OpenAI API
-    participant Q as Qdrant
-
-    U->>S: Upload PDF
-    S->>S: Save file to uploads/*.pdf
-    S->>I: Send event rag/ingest_pdf\n(pdf_path, source_id)
-    I->>A: Trigger rag_inngest_pdf
-    A->>D: load_and_chunk_pdf(pdf_path)
-    D-->>A: chunks
-    A->>A: scan extracted text
-    alt quarantine
-        A-->>I: Function output {ingested: 0, scan_decision: quarantine}
-    else allow or review
-        A->>O: embed_texts(chunks)
-        O-->>A: vectors
-        A->>Q: upsert(ids, vectors, payloads + security metadata)
-        Q-->>A: upsert complete
-        A-->>I: Function output {ingested: N, scan_decision: allow|review}
-    end
-    I-->>S: Event accepted
-    S-->>U: Show ingestion triggered
-```
-
-### Query Sequence
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant S as Streamlit UI
-    participant I as Inngest Dev Server
-    participant A as FastAPI + Inngest Function
-    participant O as OpenAI API
-    participant Q as Qdrant
-
-    U->>S: Enter question (+ optional source filter)
-    S->>I: Send event rag/query_pdf_ai\n(question, top_k, source_id?, user_role)
-    S->>I: Start polling runs for event_id
-    I->>A: Trigger rag_query_pdf_ai
-    A->>O: embed_texts([question])
-    O-->>A: query vector
-    A->>A: build retrieval policy context
-    A->>Q: search(query_vector, top_k, policy filter)
-    Q-->>A: retrieved chunks + metadata
-    A->>A: safe context builder
-    A->>O: LLM inference with filtered labeled context
-    O-->>A: answer
-    A->>A: output filter
-    A-->>I: Function output {answer, sources, num_contexts}
-    loop Poll until run complete
-        S->>I: GET /events/{event_id}/runs
-        I-->>S: Run status / output if complete
-    end
-    S-->>U: Display answer + sources
-```
+- shows layered security controls across the full RAG lifecycle
+- makes security behavior visible through an interactive UI
+- provides a practical demo environment for experimentation and evaluation
 
 ## Troubleshooting
 
@@ -338,13 +170,7 @@ The current system should be treated as a security-aware demo, not a hardened se
 
 ## Future Work
 
-- replace demo role selection with real authentication and trusted policy context
-- strengthen ingestion scanning and parser hardening
-- support trusted document metadata rather than defaults
-- improve output screening and evaluation coverage
-- move audit logs to durable storage
-
-The fuller phased plan lives in [Roadmap](docs/roadmap.md).
+Future work includes real authentication, stronger ingestion controls, trusted metadata, more robust output screening, and broader evaluation coverage. The fuller phased plan lives in [Roadmap](docs/roadmap.md).
 
 ## Credit
 
