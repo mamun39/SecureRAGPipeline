@@ -33,6 +33,7 @@ class RAGUpsertResult(pydantic.BaseModel):
 
     ingested: int
     classification: str = "internal"
+    trust_level: str = "user_uploaded"
     scan_decision: str = "allow"
     scan_flags: list[str] = pydantic.Field(default_factory=list)
     message: str | None = None

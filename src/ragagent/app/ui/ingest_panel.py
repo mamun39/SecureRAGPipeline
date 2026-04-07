@@ -39,6 +39,12 @@ def render_ingest_panel() -> None:
         index=1,
         key="ingest_classification",
     )
+    trust_level = st.selectbox(
+        "Trust level",
+        options=["user_uploaded", "verified", "unverified"],
+        index=0,
+        key="ingest_trust_level",
+    )
     uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=False, key="ingest_upload")
 
     if uploaded is not None:
@@ -50,7 +56,9 @@ def render_ingest_panel() -> None:
                 pdf_path=str(path.resolve()),
                 size_bytes=path.stat().st_size,
             )
-            event_id = asyncio.run(send_rag_ingest_event(path, classification=classification))
+            event_id = asyncio.run(
+                send_rag_ingest_event(path, classification=classification, trust_level=trust_level)
+            )
             output = wait_for_run_output(event_id)
             st.session_state.latest_ingestion_output = {
                 "source_id": path.name,
@@ -64,11 +72,12 @@ def render_ingest_panel() -> None:
         return
 
     st.markdown("**Latest Ingestion Result**")
-    ingestion_col1, ingestion_col2, ingestion_col3, ingestion_col4 = st.columns(4)
+    ingestion_col1, ingestion_col2, ingestion_col3, ingestion_col4, ingestion_col5 = st.columns(5)
     ingestion_col1.metric("Decision", latest_ingestion.get("scan_decision", "unknown"))
     ingestion_col2.metric("Chunks ingested", latest_ingestion.get("ingested", 0))
     ingestion_col3.metric("Classification", latest_ingestion.get("classification", "internal"))
-    ingestion_col4.metric("Flags", len(latest_ingestion.get("scan_flags", [])))
+    ingestion_col4.metric("Trust", latest_ingestion.get("trust_level", "user_uploaded"))
+    ingestion_col5.metric("Flags", len(latest_ingestion.get("scan_flags", [])))
     st.caption(f"Source: {latest_ingestion.get('source_id', 'unknown')}")
     if latest_ingestion.get("message"):
         st.write(latest_ingestion["message"])

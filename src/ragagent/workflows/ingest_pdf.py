@@ -29,6 +29,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
         chunks = chunks_and_src.chunks
         source_id = chunks_and_src.source_id
         classification = ctx.event.data.get("classification", "internal")
+        trust_level = ctx.event.data.get("trust_level", "user_uploaded")
         created_at = datetime.datetime.now(datetime.UTC).isoformat()
         scan_result = scan_document_text("\n".join(chunks))
         log_security_event(
@@ -54,6 +55,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
             return RAGUpsertResult(
                 ingested=0,
                 classification=classification,
+                trust_level=trust_level,
                 scan_decision=scan_result.decision,
                 scan_flags=scan_result.flags,
                 message=message,
@@ -75,6 +77,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
                 source=source_id,
                 text=chunks[i],
                 classification=classification,
+                trust_level=trust_level,
                 ingest_scan_flags=scan_result.flags,
                 ingest_decision=scan_result.decision,
                 content_hash=hashlib.sha256(chunks[i].encode("utf-8")).hexdigest(),
@@ -86,6 +89,7 @@ async def run_ingest_pdf(ctx: inngest.Context) -> dict:
         return RAGUpsertResult(
             ingested=len(chunks),
             classification=classification,
+            trust_level=trust_level,
             scan_decision=scan_result.decision,
             scan_flags=scan_result.flags,
             message=f"Ingested document '{source_id}' with decision '{scan_result.decision}'.",
