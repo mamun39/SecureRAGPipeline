@@ -1,5 +1,7 @@
 """Audit events panel for the Streamlit UI."""
 
+from collections import Counter
+
 import streamlit as st
 
 from ...security.audit import read_recent_security_events
@@ -43,7 +45,23 @@ def render_audit_panel(limit: int = 20) -> None:
         st.caption("No audit events match the current filters.")
         return
 
+    event_counts = Counter(event.get("event_type", "unknown") for event in filtered_events)
+    st.markdown("**Event Summary**")
+    summary_columns = st.columns(min(4, max(1, len(event_counts))))
+    for idx, (event_type, count) in enumerate(event_counts.most_common(4)):
+        summary_columns[idx].metric(event_type, count)
+
     for event in filtered_events:
-        header = f"{event.get('timestamp', '')} | {event.get('event_type', 'unknown')}"
+        source_label = (
+            event.get("source_id")
+            or event.get("doc_id")
+            or event.get("source")
+            or "no source"
+        )
+        header = (
+            f"{event.get('timestamp', '')} | "
+            f"{event.get('event_type', 'unknown')} | "
+            f"{source_label}"
+        )
         with st.expander(header, expanded=False):
             st.json(event)

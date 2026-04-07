@@ -63,6 +63,34 @@ def render_documents_panel() -> None:
         st.caption("No documents match the current filters.")
         return
 
+    selected_doc_id = st.selectbox(
+        "Inspect a document",
+        options=[doc.get("doc_id", "unknown") for doc in filtered_documents],
+        key="documents_selected_doc_id",
+    )
+    selected_document = next(
+        (doc for doc in filtered_documents if doc.get("doc_id", "unknown") == selected_doc_id),
+        filtered_documents[0],
+    )
+
+    st.markdown("**Selected Document**")
+    st.write(
+        f"`{selected_document.get('source', 'unknown')}` is stored as "
+        f"`{selected_document.get('classification', 'internal')}` / "
+        f"`{selected_document.get('trust_level', 'user_uploaded')}` with "
+        f"`{selected_document.get('ingest_decision', 'allow')}` status."
+    )
+    detail_col1, detail_col2, detail_col3, detail_col4 = st.columns(4)
+    detail_col1.metric("Chunks", selected_document.get("chunk_count", 0))
+    detail_col2.metric("Classification", selected_document.get("classification", "internal"))
+    detail_col3.metric("Trust", selected_document.get("trust_level", "user_uploaded"))
+    detail_col4.metric("Decision", selected_document.get("ingest_decision", "allow"))
+    st.caption(f"Created at: {selected_document.get('created_at', 'unknown')}")
+    if selected_document.get("ingest_scan_flags"):
+        st.write("Scan flags:")
+        for flag in selected_document["ingest_scan_flags"]:
+            st.write(f"- {flag}")
+
     st.dataframe(
         filtered_documents,
         width="stretch",
