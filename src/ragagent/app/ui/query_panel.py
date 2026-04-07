@@ -55,7 +55,7 @@ def render_query_panel() -> None:
             options=["public", "employee", "manager", "admin"],
             key="query_user_role",
         )
-        selected_source = st.selectbox("Limit search to a source", options=source_options, key="query_source")
+        selected_source = st.selectbox("Limit search to a stored source", options=source_options, key="query_source")
         submitted = st.form_submit_button("Ask")
 
         if submitted and question.strip():

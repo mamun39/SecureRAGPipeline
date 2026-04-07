@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from ..services.document_service import load_document_summaries
+from ..services.document_service import delete_document, load_document_summaries
 
 
 def render_documents_panel() -> None:
@@ -90,6 +90,16 @@ def render_documents_panel() -> None:
         st.write("Scan flags:")
         for flag in selected_document["ingest_scan_flags"]:
             st.write(f"- {flag}")
+
+    delete_col1, delete_col2 = st.columns([0.7, 0.3])
+    delete_col1.caption("Remove this document and all of its stored chunks from Qdrant.")
+    if delete_col2.button("Delete this document", type="secondary", key=f"delete_{selected_doc_id}"):
+        delete_error = delete_document(selected_doc_id)
+        if delete_error:
+            st.error(f"Could not delete document `{selected_doc_id}`: {delete_error}")
+        else:
+            st.success(f"Deleted document `{selected_doc_id}`.")
+            st.rerun()
 
     st.dataframe(
         filtered_documents,

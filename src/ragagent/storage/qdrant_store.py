@@ -6,6 +6,8 @@ from qdrant_client.models import (
     Distance,
     PointStruct,
     Filter,
+    FieldCondition,
+    MatchValue,
 )
 
 from ..config import DEFAULT_EMBED_DIM, DEFAULT_QDRANT_COLLECTION, DEFAULT_QDRANT_URL
@@ -111,3 +113,17 @@ class QdrantStorage:
             summary["chunk_count"] += 1
 
         return sorted(summaries.values(), key=lambda item: item.get("created_at", ""), reverse=True)
+
+    def delete_document(self, doc_id: str) -> None:
+        """Delete all stored chunks belonging to one document ID."""
+        self.client.delete(
+            collection_name=self.collection,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="doc_id",
+                        match=MatchValue(value=doc_id),
+                    )
+                ]
+            ),
+        )

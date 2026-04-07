@@ -1,4 +1,4 @@
-# RAGAgent
+# SecureRAGPipeline
 
 A security-aware Retrieval-Augmented Generation (RAG) built with FastAPI, Inngest, Qdrant, OpenAI, and Streamlit.
 
