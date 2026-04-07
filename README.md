@@ -1,5 +1,13 @@
 # SecureRAGPipeline
 
+![Python](https://img.shields.io/badge/Python-3.14%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-app-009688?logo=fastapi&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)
+![Qdrant](https://img.shields.io/badge/Qdrant-vector%20store-DC244C)
+![OpenAI](https://img.shields.io/badge/OpenAI-LLM-412991?logo=openai&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-security%20demo-orange)
+
 A security-aware Retrieval-Augmented Generation (RAG) built with FastAPI, Inngest, Qdrant, OpenAI, and Streamlit.
 
 It demonstrates layered app-level controls around ingestion, retrieval, prompt context assembly, output screening, and audit logging. It is an interactive security demo, not a hardened production boundary.
@@ -175,6 +183,10 @@ Future work includes real authentication, stronger ingestion controls, trusted m
 ## Credit
 
 This project was inspired by and gives credit to [ProductionGradeRAGPythonApp](https://github.com/techwithtim/ProductionGradeRAGPythonApp).
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ## Notes
 
