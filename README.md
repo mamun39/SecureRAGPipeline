@@ -162,6 +162,58 @@ The backend is event-driven:
 - Inngest listens for named events
 - matching workflows perform ingestion or query handling
 
+### Layered Security Controls in the RAG Pipeline
+
+```mermaid
+flowchart LR
+    U[Upload PDF]
+    S[Ingestion Scanner]
+    D{Scan Decision}
+    Q[Quarantine]
+    C[Chunk and Embed]
+    M[Store in Qdrant with metadata<br/>doc_id, source, classification, trust_level, ingest_decision]
+    R[Query with demo role/policy context]
+    F[Retrieval Policy Filter<br/>tenant, classification, non-quarantine, trust]
+    B[Safe Context Builder<br/>treat retrieved text as untrusted evidence]
+    L[LLM Generation]
+    O[Output Filter]
+    X{Output Decision}
+    A[Return Answer]
+    RB[Redact or Block]
+    G[(Structured Audit Logging)]
+
+    U --> S
+    S --> D
+    D -->|allow / review| C
+    D -->|quarantine| Q
+    C --> M
+    R --> F
+    M --> F
+    F --> B
+    B --> L
+    L --> O
+    O --> X
+    X -->|allow| A
+    X -->|redact / block| RB
+
+    S -.-> G
+    D -.-> G
+    F -.-> G
+    O -.-> G
+
+    classDef normal fill:#e8f1fb,stroke:#2b6cb0,color:#1a365d;
+    classDef decision fill:#fff4d6,stroke:#b7791f,color:#744210;
+    classDef danger fill:#fde8e8,stroke:#c53030,color:#742a2a;
+    classDef storage fill:#edf2f7,stroke:#4a5568,color:#1a202c;
+    classDef audit fill:#f0fff4,stroke:#2f855a,color:#22543d;
+
+    class U,S,C,R,F,B,L,O,A normal;
+    class D,X decision;
+    class Q,RB danger;
+    class M storage;
+    class G audit;
+```
+
 ### Architecture Overview
 
 ```mermaid
