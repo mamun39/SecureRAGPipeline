@@ -56,6 +56,12 @@ py -m venv .venv
 .venv\Scripts\python.exe -m pip install -e .
 ```
 
+With `uv`:
+
+```powershell
+uv sync
+```
+
 Create a `.env` file in the project root:
 
 ```env
@@ -69,7 +75,13 @@ Run the app:
 2. Start the FastAPI/Inngest app:
 
 ```powershell
-.venv\Scripts\uvicorn ragagent.app.inngest_app:app --reload
+.venv\Scripts\uvicorn secureragpipeline.app.inngest_app:app --reload
+```
+
+Or with `uv`:
+
+```powershell
+uv run python -m uvicorn secureragpipeline.app.inngest_app:app --reload
 ```
 
 3. Start the Inngest dev server:
@@ -81,7 +93,13 @@ npx --ignore-scripts=false inngest-cli@latest dev -u http://127.0.0.1:8000/api/i
 4. Start Streamlit:
 
 ```powershell
-.venv\Scripts\streamlit run src/ragagent/app/streamlit_app.py
+.venv\Scripts\streamlit run src/secureragpipeline/app/streamlit_app.py
+```
+
+Or with `uv`:
+
+```powershell
+uv run streamlit run src/secureragpipeline/app/streamlit_app.py
 ```
 
 ## Testing
@@ -92,14 +110,20 @@ Preferred:
 .venv\Scripts\python.exe -m unittest discover -s tests -t . -p "test_*.py"
 ```
 
+With `uv`:
+
+```powershell
+uv run python -m unittest discover -s tests -t . -p "test_*.py"
+```
+
 ## Project Structure
 
-- [src/ragagent/app/](src/ragagent/app): entrypoints and UI
-- [src/ragagent/workflows/](src/ragagent/workflows): ingest and query orchestration
-- [src/ragagent/ingestion/](src/ragagent/ingestion): PDF loading and embeddings
-- [src/ragagent/security/](src/ragagent/security): scanning, policy, filtering, and audit
-- [src/ragagent/storage/](src/ragagent/storage): Qdrant access
-- [src/ragagent/models/](src/ragagent/models): payload and result models
+- [src/secureragpipeline/app/](src/secureragpipeline/app): entrypoints and UI
+- [src/secureragpipeline/workflows/](src/secureragpipeline/workflows): ingest and query orchestration
+- [src/secureragpipeline/ingestion/](src/secureragpipeline/ingestion): PDF loading and embeddings
+- [src/secureragpipeline/security/](src/secureragpipeline/security): scanning, policy, filtering, and audit
+- [src/secureragpipeline/storage/](src/secureragpipeline/storage): Qdrant access
+- [src/secureragpipeline/models/](src/secureragpipeline/models): payload and result models
 - [tests/](tests): unit and integration coverage
 
 ## Security Pipeline

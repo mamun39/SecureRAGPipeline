@@ -3,11 +3,11 @@
 from dotenv import load_dotenv
 import streamlit as st
 
-from ragagent.app.ui.audit_panel import render_audit_panel
-from ragagent.app.ui.documents_panel import render_documents_panel
-from ragagent.app.ui.ingest_panel import render_ingest_panel
-from ragagent.app.ui.query_panel import render_query_panel
-from ragagent.app.services.document_service import load_document_summaries
+from secureragpipeline.app.ui.audit_panel import render_audit_panel
+from secureragpipeline.app.ui.documents_panel import render_documents_panel
+from secureragpipeline.app.ui.ingest_panel import render_ingest_panel
+from secureragpipeline.app.ui.query_panel import render_query_panel
+from secureragpipeline.app.services.document_service import load_document_summaries
 
 
 load_dotenv()

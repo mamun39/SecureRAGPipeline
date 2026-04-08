@@ -1,7 +1,7 @@
 import unittest
 
-from ragagent.models.policy import RetrievalPolicyContext
-from ragagent.security.retrieval_policy import (
+from secureragpipeline.models.policy import RetrievalPolicyContext
+from secureragpipeline.security.retrieval_policy import (
     allowed_classifications_for_role,
     build_retrieval_filter,
 )

@@ -2,7 +2,7 @@
 
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from ragagent.storage.qdrant_store import QdrantStorage
+from secureragpipeline.storage.qdrant_store import QdrantStorage
 
 
 def list_available_sources() -> list[str]:

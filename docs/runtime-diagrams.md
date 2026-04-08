@@ -7,12 +7,12 @@ These diagrams show the current end-to-end runtime shape of SecureRAGPipeline in
 ```mermaid
 flowchart LR
     U[User]
-    S[Streamlit UI<br/>src/ragagent/app/streamlit_app.py]
+    S[Streamlit UI<br/>src/secureragpipeline/app/streamlit_app.py]
     UP[(uploads/*.pdf)]
     I[Inngest Dev Server<br/>:8288]
-    A[FastAPI + Inngest Functions<br/>src/ragagent/app/inngest_app.py :8000]
-    D[ragagent.ingestion<br/>PDF load/chunk + embeddings]
-    Q[ragagent.storage.qdrant_store<br/>QdrantStorage]
+    A[FastAPI + Inngest Functions<br/>src/secureragpipeline/app/inngest_app.py :8000]
+    D[secureragpipeline.ingestion<br/>PDF load/chunk + embeddings]
+    Q[secureragpipeline.storage.qdrant_store<br/>QdrantStorage]
     V[(Qdrant<br/>:6333)]
     O[(OpenAI API)]
 
@@ -43,7 +43,7 @@ sequenceDiagram
     participant S as Streamlit UI
     participant I as Inngest Dev Server
     participant A as FastAPI + Inngest Function
-    participant D as ragagent.ingestion
+    participant D as secureragpipeline.ingestion
     participant O as OpenAI API
     participant Q as Qdrant
 

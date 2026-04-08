@@ -1,6 +1,6 @@
 import unittest
 
-from ragagent.security.output_filter import screen_generated_answer
+from secureragpipeline.security.output_filter import screen_generated_answer
 
 
 class OutputFilterTests(unittest.TestCase):

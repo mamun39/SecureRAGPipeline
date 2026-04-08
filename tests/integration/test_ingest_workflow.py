@@ -2,8 +2,8 @@ import asyncio
 import unittest
 from unittest import mock
 
-from ragagent.app import inngest_app
-from ragagent.workflows import ingest_pdf as ingest_pdf_workflow
+from secureragpipeline.app import inngest_app
+from secureragpipeline.workflows import ingest_pdf as ingest_pdf_workflow
 
 
 class _FakeEvent:
