@@ -11,6 +11,7 @@
 A security-aware Retrieval-Augmented Generation (RAG) built with FastAPI, Inngest, Qdrant, OpenAI, and Streamlit.
 
 It demonstrates layered app-level controls around ingestion, retrieval, prompt context assembly, output screening, and audit logging. It is an interactive security demo, not a hardened production boundary.
+The project now also includes Promptfoo-based adversarial evaluation and targeted hardening driven by observed failures.
 
 Further documentation:
 
@@ -27,6 +28,7 @@ Further documentation:
 - structured audit logging across the pipeline
 - Streamlit UI for inspecting results, traces, documents, and audit events
 - `POST /api/query` for automated querying without the Streamlit UI
+- Promptfoo-based adversarial evaluation with fix-driven hardening
 
 The primary security-control figure lives in [Security Architecture](docs/security-architecture.md).
 
@@ -39,6 +41,7 @@ The primary security-control figure lives in [Security Architecture](docs/securi
 - safe prompt context construction from retrieved chunks
 - post-generation output screening
 - structured security event logging
+- adversarial evaluation and targeted hardening based on observed failures
 
 ## Quickstart
 
@@ -150,6 +153,42 @@ uv run python -m unittest discover -s tests -t . -p "test_*.py"
 
 For more detail on control placement and current behavior, see [Security Architecture](docs/security-architecture.md).
 
+## Security Evaluation
+
+This project includes Promptfoo-based adversarial evaluation against the local `POST /api/query` endpoint.
+
+Current suites cover:
+
+- indirect prompt injection
+- retrieval authorization
+- sensitive-data leakage and output filtering
+
+These suites were used to expose concrete weaknesses and drive targeted hardening in the shared query and output-screening path.
+
+| Suite | Initial Result | Current Result |
+|---|---:|---:|
+| Prompt injection | 6/6 | 6/6 |
+| Retrieval authz | 5/7 | 7/7 |
+| Data leakage | 5/7 | 7/7 |
+
+- denial responses were echoing sensitive request wording instead of using neutral refusals
+- internal token-like strings and confidential marker phrases were being mirrored back in final answers
+- some hidden-instruction and disclosure phrasing needed stronger suppression in final answers
+- the query path needed an abstention check when the requested classification was not available in allowed evidence
+
+### How To Run The Evals
+
+Promptfoo files live under [evals/promptfoo/](evals/promptfoo/).
+
+```powershell
+npx promptfoo@latest eval -c evals/promptfoo/promptfooconfig.yaml
+npx promptfoo@latest eval --no-cache -c evals/promptfoo/scenarios/prompt_injection.yaml
+npx promptfoo@latest eval --no-cache -c evals/promptfoo/scenarios/retrieval_authz.yaml
+npx promptfoo@latest eval --no-cache -c evals/promptfoo/scenarios/data_leakage.yaml
+```
+
+Use `--no-cache` when validating recent code changes so stale Promptfoo results do not mask current behavior.
+
 ## Demo Defaults
 
 | Field | Default |
@@ -205,6 +244,7 @@ The current system should be treated as a security-aware demo, not a hardened se
 - ingestion scanning is phrase-based and can miss malicious content or over-flag benign content
 - safe context handling currently drops review-flagged chunks rather than applying nuanced risk scoring
 - output filtering is heuristic and can miss secrets or over-block benign content
+- current adversarial coverage is still limited to a few focused suites rather than a broad security benchmark
 - the system does not isolate document parsing, sandbox model execution, or verify document provenance
 - audit logs are local process logs and are not tamper-evident
 - existing security layers reduce obvious risks, but none of them alone or together should be treated as a guarantee of safety

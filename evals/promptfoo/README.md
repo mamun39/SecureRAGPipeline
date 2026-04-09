@@ -2,6 +2,8 @@
 
 This directory holds the baseline Promptfoo setup for exercising the local `POST /api/query` endpoint without using the Streamlit UI.
 
+The app has been incrementally hardened against issues exposed by these suites. Rerun the relevant scenarios after security-related changes to verify whether behavior improved or regressed.
+
 ## Purpose
 
 - provide a small, repeatable smoke test for the external query API

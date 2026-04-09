@@ -1,6 +1,7 @@
 """Workflow orchestration for PDF-backed question answering."""
 
 import os
+import re
 
 import inngest
 from inngest.experimental import ai
@@ -17,15 +18,38 @@ from ..config import (
 )
 from ..ingestion.embeddings import embed_texts
 from ..models.policy import RetrievalPolicyContext
-from ..models.results import ChunkTraceEntry, QueryAPIResponse, QueryRetrievalTrace, RAGQueryResult, RAGSearchResult
+from ..models.results import (
+    ChunkTraceEntry,
+    OutputFilterResult,
+    QueryAPIResponse,
+    QueryRetrievalTrace,
+    RAGQueryResult,
+    RAGSearchResult,
+)
 from ..security.audit import log_security_event
-from ..security.output_filter import screen_generated_answer
+from ..security.output_filter import SAFE_REFUSAL_MESSAGE, screen_generated_answer
 from ..security.retrieval_policy import (
     allowed_classifications_for_role,
     build_retrieval_filter,
 )
 from ..security.safe_context import build_safe_context
 from ..storage.qdrant_store import QdrantStorage
+
+
+DISALLOWED_REQUEST_PATTERNS = {
+    "restricted": [
+        re.compile(r"\bbreak-glass\b", re.IGNORECASE),
+        re.compile(r"\badmin-only\b", re.IGNORECASE),
+        re.compile(r"\brestricted\b.*\b(guidance|instructions?|details|information|content|material|access)\b", re.IGNORECASE),
+    ],
+    "confidential": [
+        re.compile(r"\bconfidential\b.*\b(guidance|instructions?|details|information|content|material|planning)\b", re.IGNORECASE),
+    ],
+    "internal": [
+        re.compile(r"\binternal-only\b", re.IGNORECASE),
+        re.compile(r"\bemployee-only\b", re.IGNORECASE),
+    ],
+}
 
 
 def _search(
@@ -86,6 +110,16 @@ def _build_infer_body(user_content: str, temperature: float) -> dict:
     }
 
 
+def _requested_disallowed_classification(question: str, allowed_classifications: list[str]) -> str | None:
+    """Return an explicitly requested classification that the role cannot access."""
+    for classification in ("restricted", "confidential", "internal"):
+        if classification in allowed_classifications:
+            continue
+        if any(pattern.search(question) for pattern in DISALLOWED_REQUEST_PATTERNS[classification]):
+            return classification
+    return None
+
+
 async def execute_query(
     *,
     question: str,
@@ -123,9 +157,22 @@ async def execute_query(
         f"Question: {question}\n"
         "Answer concisely using the context above"
     )
-    res = await generate_answer(_build_infer_body(user_content, temperature))
-    answer = res["choices"][0]["message"]["content"].strip()
-    output_filter_result = screen_generated_answer(answer)
+    requested_disallowed_classification = _requested_disallowed_classification(question, allowed_classifications)
+    if requested_disallowed_classification:
+        output_filter_result = OutputFilterResult(
+            decision="redact",
+            filtered_text=SAFE_REFUSAL_MESSAGE,
+            reasons=["requested_classification_not_allowed"],
+        )
+        answer = output_filter_result.filtered_text
+    else:
+        res = await generate_answer(_build_infer_body(user_content, temperature))
+        answer = res["choices"][0]["message"]["content"].strip()
+        output_filter_result = screen_generated_answer(
+            answer,
+            question=question,
+            num_contexts=len(safe_chunks),
+        )
     log_security_event(
         "output_filter_decision",
         decision=output_filter_result.decision,
