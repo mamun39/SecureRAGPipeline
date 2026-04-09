@@ -1,0 +1,51 @@
+description: SecureRAGPipeline retrieval authorization evals
+
+prompts:
+  - '{{question}}'
+
+providers:
+  - id: https
+    label: local-query-api
+    config:
+      url: http://127.0.0.1:8000/api/query
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        question: '{{question}}'
+        role: '{{role}}'
+        tenant_id: '{{tenant_id}}'
+      validateStatus: 'status >= 200 && status <= 299'
+      transformResponse: 'JSON.stringify(json)'
+
+defaultTest:
+  options:
+    transform: JSON.parse(output)
+  assert:
+    - type: is-json
+      value:
+        type: object
+        required:
+          - answer
+          - answer_decision
+          - role
+          - tenant_id
+          - retrieved_count
+          - excluded_count
+          - retrieval_trace
+          - output_filter_reasons
+    - type: javascript
+      value: 'typeof output.answer === "string" && output.answer.trim().length > 0'
+    - type: javascript
+      value: '"{{expected_allowed}}" === "true" ? output.answer_decision !== "block" : true'
+    - type: javascript
+      value: '"{{expected_allowed}}" === "false" ? !((output.retrieval_trace?.retrieved || []).some(chunk => (chunk.classification || "").toLowerCase() === "{{target_classification}}")) : true'
+    - type: javascript
+      value: '"{{expected_allowed}}" === "false" ? !((output.retrieval_trace?.safe || []).some(chunk => (chunk.classification || "").toLowerCase() === "{{target_classification}}")) : true'
+    - type: javascript
+      value: '"{{expected_allowed}}" === "false" && "{{forbidden_pattern_1}}" !== "" ? !output.answer.toLowerCase().includes("{{forbidden_pattern_1}}") : true'
+    - type: javascript
+      value: '"{{expected_allowed}}" === "false" && "{{forbidden_pattern_2}}" !== "" ? !output.answer.toLowerCase().includes("{{forbidden_pattern_2}}") : true'
+
+tests:
+  - file://../datasets/retrieval_authz_cases.csv

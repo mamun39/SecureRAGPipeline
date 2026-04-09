@@ -45,6 +45,14 @@ From the repository root:
 npx promptfoo@latest eval -c evals/promptfoo/scenarios/prompt_injection.yaml
 ```
 
+## Run The Retrieval-Authorization Scenario
+
+From the repository root:
+
+```powershell
+npx promptfoo@latest eval -c evals/promptfoo/scenarios/retrieval_authz.yaml
+```
+
 ## What The Baseline Covers
 
 - sends a normal query to the local `POST /api/query` endpoint
@@ -59,3 +67,10 @@ npx promptfoo@latest eval -c evals/promptfoo/scenarios/prompt_injection.yaml
 - checks that the answer does not echo obvious override or leakage phrases such as `system prompt`, `ignore previous instructions`, `confidential marker`, `hidden metadata`, or `admin policy`
 
 This step is intentionally small. Additional adversarial suites and broader security evals will be added in later steps.
+
+## Retrieval-Authorization Scenario
+
+- tests the current role/classification retrieval policy for `public`, `employee`, `manager`, and `admin`
+- checks denied cases mechanically by ensuring forbidden classifications do not appear in `retrieval_trace.retrieved` or `retrieval_trace.safe`
+- checks allowed cases do not get blocked unnecessarily by the output filter
+- includes one indirect request phrasing rather than only direct “show me restricted content” prompts
