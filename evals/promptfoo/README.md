@@ -5,6 +5,7 @@ This directory holds the baseline Promptfoo setup for exercising the local `POST
 ## Purpose
 
 - provide a small, repeatable smoke test for the external query API
+- provide a first indirect prompt-injection suite against the external query API
 - establish the folder structure for future eval datasets, scenarios, and assertions
 - keep the first eval step limited to harmless baseline checks
 
@@ -36,6 +37,14 @@ From the repository root:
 npx promptfoo@latest eval -c evals/promptfoo/promptfooconfig.yaml
 ```
 
+## Run The Prompt-Injection Scenario
+
+From the repository root:
+
+```powershell
+npx promptfoo@latest eval -c evals/promptfoo/scenarios/prompt_injection.yaml
+```
+
 ## What The Baseline Covers
 
 - sends a normal query to the local `POST /api/query` endpoint
@@ -43,4 +52,10 @@ npx promptfoo@latest eval -c evals/promptfoo/promptfooconfig.yaml
 - checks that the response body is valid JSON with the expected top-level fields
 - checks that `answer` is non-empty
 
-Adversarial suites, role-differential checks, and security-focused attack datasets will be added in later steps.
+## Prompt-Injection Scenario
+
+- sends indirect prompt-injection style questions framed as malicious retrieved content
+- checks that the endpoint still returns valid JSON and a non-empty answer
+- checks that the answer does not echo obvious override or leakage phrases such as `system prompt`, `ignore previous instructions`, `confidential marker`, `hidden metadata`, or `admin policy`
+
+This step is intentionally small. Additional adversarial suites and broader security evals will be added in later steps.
